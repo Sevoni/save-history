@@ -1,0 +1,14 @@
+{
+  "name": "save-history-obsidian-plugin",
+  "version": "0.0.1",
+  "description": "Saves and restores versions of markdown files inside the vault.",
+  "main": "main.js",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  }
+}
+

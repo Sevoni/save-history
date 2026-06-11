@@ -1,0 +1,193 @@
+import { SaveHistoryPlugin } from "./main";
+
+export type SnapshotRecord = {
+  path: string; // vault-relative
+  timestamp: string; // ISO
+  content: string;
+  reason: string;
+};
+
+const SNAPSHOT_ROOT = "versions";
+
+export function getSnapshotDirPath(vaultRelativePath: string): string {
+  const normalized = vaultRelativePath.replace(/^\/+/, "");
+  // versions/<vaultRelativePath>
+  return `${SNAPSHOT_ROOT}/${normalized}`;
+}
+
+export function getSnapshotFilePath(vaultRelativePath: string, timestamp: string): string {
+  // ISO timestamp has colons ':' which are invalid in Windows filenames.
+  // Replace colons with dashes for a safe, cross-platform filename.
+  const safeTimestamp = timestamp.replace(/:/g, "-");
+  return `${getSnapshotDirPath(vaultRelativePath)}/${safeTimestamp}.json`;
+}
+
+export async function ensureSnapshotDir(plugin: SaveHistoryPlugin, vaultRelativePath: string) {
+  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const adapter = plugin.app.vault.adapter;
+
+  const parts = dirPath.split("/");
+  let currentPath = "";
+  for (const part of parts) {
+    if (!part) continue;
+    currentPath = currentPath ? `${currentPath}/${part}` : part;
+    if (!(await adapter.exists(currentPath))) {
+      try {
+        await adapter.mkdir(currentPath);
+      } catch {
+        // Safe fallback in case multiple calls try to create it simultaneously
+      }
+    }
+  }
+}
+
+export async function saveSnapshotContent(
+  plugin: SaveHistoryPlugin,
+  vaultRelativePath: string,
+  timestamp: string,
+  content: string,
+  reason: string
+) {
+  await ensureSnapshotDir(plugin, vaultRelativePath);
+
+  const record: SnapshotRecord = { path: vaultRelativePath, timestamp, content, reason };
+  const filePath = getSnapshotFilePath(vaultRelativePath, timestamp);
+  const adapter = plugin.app.vault.adapter;
+
+  await adapter.write(filePath, JSON.stringify(record, null, 2));
+}
+
+export async function listSnapshotsForFile(
+  plugin: SaveHistoryPlugin,
+  vaultRelativePath: string
+): Promise<(SnapshotRecord & { filePath: string })[]> {
+  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const adapter = plugin.app.vault.adapter;
+
+  if (!(await adapter.exists(dirPath))) {
+    return [];
+  }
+
+  let listResult;
+  try {
+    listResult = await adapter.list(dirPath);
+  } catch {
+    return [];
+  }
+
+  const jsonFiles = (listResult.files || [])
+    .map((p: string) => p.replace(/\\/g, "/"))
+    .filter((p: string) => p.endsWith(".json"))
+    .sort();
+
+  const snapshots: (SnapshotRecord & { filePath: string })[] = [];
+  for (const p of jsonFiles) {
+    try {
+      const json = await adapter.read(p);
+      if (json) {
+        const record = JSON.parse(json) as SnapshotRecord;
+        snapshots.push({
+          ...record,
+          filePath: p
+        });
+      }
+    } catch {
+      // ignore invalid snapshot
+    }
+  }
+
+  // newest first
+  snapshots.sort((a, b) => (a.timestamp > b.timestamp ? -1 : 1));
+  return snapshots;
+}
+
+export async function readSnapshotContent(
+  plugin: SaveHistoryPlugin,
+  filePath: string
+): Promise<SnapshotRecord | null> {
+  const adapter = plugin.app.vault.adapter;
+
+  if (!(await adapter.exists(filePath))) {
+    return null;
+  }
+
+  try {
+    const json = await adapter.read(filePath);
+    return JSON.parse(json) as SnapshotRecord;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteSnapshotFile(
+  plugin: SaveHistoryPlugin,
+  filePath: string
+): Promise<boolean> {
+  const adapter = plugin.app.vault.adapter;
+
+  if (await adapter.exists(filePath)) {
+    try {
+      await adapter.remove(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export async function updateSnapshotLabel(
+  plugin: SaveHistoryPlugin,
+  filePath: string,
+  newLabel: string
+): Promise<boolean> {
+  const adapter = plugin.app.vault.adapter;
+
+  if (await adapter.exists(filePath)) {
+    try {
+      const json = await adapter.read(filePath);
+      const record = JSON.parse(json) as SnapshotRecord;
+      record.reason = newLabel;
+      await adapter.write(filePath, JSON.stringify(record, null, 2));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export async function savePreRestoreBackup(
+  plugin: SaveHistoryPlugin,
+  vaultRelativePath: string,
+  content: string
+) {
+  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const adapter = plugin.app.vault.adapter;
+
+  // 1. Delete any existing pre-restore backup for this file
+  if (await adapter.exists(dirPath)) {
+    try {
+      const listResult = await adapter.list(dirPath);
+      for (const p of listResult.files || []) {
+        if (p.endsWith(".json")) {
+          try {
+            const json = await adapter.read(p);
+            const record = JSON.parse(json) as SnapshotRecord;
+            if (record.reason === "pre-restore") {
+              await adapter.remove(p);
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Save the new pre-restore backup
+  const timestamp = new Date().toISOString();
+  await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
+}
