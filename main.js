@@ -149,7 +149,7 @@ var SNAPSHOT_ROOT;
 var init_storage = __esm({
   "src/storage.ts"() {
     "use strict";
-    SNAPSHOT_ROOT = "versions";
+    SNAPSHOT_ROOT = ".versions(SH)";
   }
 });
 

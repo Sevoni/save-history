@@ -7,11 +7,11 @@ export type SnapshotRecord = {
   reason: string;
 };
 
-const SNAPSHOT_ROOT = "versions";
+const SNAPSHOT_ROOT = ".versions(SH)";
 
 export function getSnapshotDirPath(vaultRelativePath: string): string {
   const normalized = vaultRelativePath.replace(/^\/+/, "");
-  // versions/<vaultRelativePath>
+  // .versions(SH)/<vaultRelativePath>
   return `${SNAPSHOT_ROOT}/${normalized}`;
 }
 
