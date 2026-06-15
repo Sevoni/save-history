@@ -98,6 +98,10 @@ declare module "obsidian" {
     vault: Vault;
   }
 
+  export class MarkdownRenderer {
+    static render(app: App, markdown: string, el: HTMLElement, sourcePath: string, component: unknown): Promise<void>;
+  }
+
   export interface AppEvents {
     // we’ll attach to vault.modify, so type it as any
     [key: string]: any;

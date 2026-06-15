@@ -252,6 +252,99 @@ function registerCommands(plugin, versioning) {
     }
   });
 }
+function makeDraggable(el, handle) {
+  let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+  let dragging = false;
+  const onMouseDown = (e) => {
+    if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+    e.preventDefault();
+    dragging = true;
+    const rect = el.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    origLeft = rect.left;
+    origTop = rect.top;
+    const parentStyle = el.parentElement?.style;
+    if (parentStyle) {
+      parentStyle.display = "flex";
+      parentStyle.justifyContent = "flex-start";
+      parentStyle.alignItems = "flex-start";
+    }
+    el.style.position = "fixed";
+    el.style.left = origLeft + "px";
+    el.style.top = origTop + "px";
+    el.style.margin = "0";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+  const onMouseMove = (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    el.style.left = origLeft + dx + "px";
+    el.style.top = origTop + dy + "px";
+  };
+  const onMouseUp = () => {
+    dragging = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+  handle.addEventListener("mousedown", onMouseDown);
+}
+function makeResizable(el) {
+  const EDGE = 8;
+  const resizer = el.createDiv();
+  resizer.style.position = "absolute";
+  resizer.style.right = "0";
+  resizer.style.bottom = "0";
+  resizer.style.width = "16px";
+  resizer.style.height = "16px";
+  resizer.style.cursor = "nwse-resize";
+  resizer.style.zIndex = "10";
+  const resizerLine1 = resizer.createDiv();
+  resizerLine1.style.position = "absolute";
+  resizerLine1.style.right = "3px";
+  resizerLine1.style.bottom = "5px";
+  resizerLine1.style.width = "10px";
+  resizerLine1.style.height = "1px";
+  resizerLine1.style.backgroundColor = "var(--text-faint)";
+  resizerLine1.style.transform = "rotate(-45deg)";
+  resizerLine1.style.transformOrigin = "right center";
+  const resizerLine2 = resizer.createDiv();
+  resizerLine2.style.position = "absolute";
+  resizerLine2.style.right = "3px";
+  resizerLine2.style.bottom = "9px";
+  resizerLine2.style.width = "6px";
+  resizerLine2.style.height = "1px";
+  resizerLine2.style.backgroundColor = "var(--text-faint)";
+  resizerLine2.style.transform = "rotate(-45deg)";
+  resizerLine2.style.transformOrigin = "right center";
+  let resizing = false;
+  let startX = 0, startY = 0, origW = 0, origH = 0;
+  resizer.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizing = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    origW = el.offsetWidth;
+    origH = el.offsetHeight;
+    const onMouseMove = (ev) => {
+      if (!resizing) return;
+      const newW = Math.max(320, origW + (ev.clientX - startX));
+      const newH = Math.max(200, origH + (ev.clientY - startY));
+      el.style.width = newW + "px";
+      el.style.height = newH + "px";
+    };
+    const onMouseUp = () => {
+      resizing = false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+}
 var import_obsidian, VIEW_TYPE_SAVE_HISTORY, SaveHistoryView, RestoreVersionModal;
 var init_ui = __esm({
   "src/ui.ts"() {
@@ -330,13 +423,18 @@ var init_ui = __esm({
             const meta = item.createDiv();
             meta.style.fontSize = "0.85em";
             meta.style.display = "flex";
-            meta.style.alignItems = "center";
-            meta.style.justifyContent = "space-between";
+            meta.style.flexDirection = "column";
+            meta.style.gap = "2px";
             const renderNormalState = () => {
               meta.empty();
-              const textSpan = meta.createEl("span");
-              textSpan.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()} (${snap.reason})`;
-              const editBtn = meta.createEl("span", { text: "\u270F\uFE0F" });
+              const nameRow = meta.createDiv();
+              nameRow.style.display = "flex";
+              nameRow.style.alignItems = "center";
+              nameRow.style.justifyContent = "space-between";
+              const label = nameRow.createEl("span");
+              label.style.fontWeight = "500";
+              label.textContent = snap.reason;
+              const editBtn = nameRow.createEl("span", { text: "\u270F\uFE0F" });
               editBtn.style.cursor = "pointer";
               editBtn.style.marginLeft = "6px";
               editBtn.title = "Rename version";
@@ -344,6 +442,10 @@ var init_ui = __esm({
                 e.stopPropagation();
                 renderEditState();
               };
+              const timeRow = meta.createDiv();
+              timeRow.style.fontSize = "0.8em";
+              timeRow.style.color = "var(--text-muted)";
+              timeRow.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
             };
             const renderEditState = () => {
               meta.empty();
@@ -427,18 +529,47 @@ var init_ui = __esm({
               previewModal.onOpen = () => {
                 const el = previewModal.contentEl;
                 el.empty();
-                el.createEl("h2", { text: `Preview: ${date.toLocaleTimeString()}` });
-                const pre = el.createEl("pre");
-                pre.style.whiteSpace = "pre-wrap";
-                pre.style.maxHeight = "400px";
-                pre.style.overflowY = "auto";
-                pre.style.padding = "10px";
-                pre.style.border = "1px solid var(--background-modifier-border)";
-                pre.textContent = restored.content;
+                const modalContainer = previewModal.modalEl;
+                if (modalContainer) {
+                  modalContainer.style.width = "800px";
+                  modalContainer.style.height = "70vh";
+                  modalContainer.style.minWidth = "320px";
+                  modalContainer.style.minHeight = "200px";
+                  modalContainer.style.position = "relative";
+                  modalContainer.style.display = "flex";
+                  modalContainer.style.flexDirection = "column";
+                  modalContainer.style.overflow = "hidden";
+                }
+                el.style.display = "flex";
+                el.style.flexDirection = "column";
+                el.style.flex = "1";
+                el.style.overflow = "hidden";
+                const titleEl = el.createEl("h2");
+                titleEl.textContent = snap.reason;
+                titleEl.style.marginBottom = "2px";
+                titleEl.style.cursor = "move";
+                titleEl.style.userSelect = "none";
+                titleEl.style.flexShrink = "0";
+                const timeEl = el.createDiv();
+                timeEl.style.fontSize = "0.85em";
+                timeEl.style.color = "var(--text-muted)";
+                timeEl.style.marginBottom = "12px";
+                timeEl.style.flexShrink = "0";
+                timeEl.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                const content = el.createDiv();
+                content.style.flex = "1";
+                content.style.overflowY = "auto";
+                content.style.padding = "10px";
+                content.style.border = "1px solid var(--background-modifier-border)";
+                content.style.borderRadius = "4px";
+                content.style.backgroundColor = "var(--background-primary)";
+                content.classList.add("markdown-preview-view");
+                import_obsidian.MarkdownRenderer.render(this.plugin.app, restored.content, content, curFile.path, previewModal);
                 const btnRow = el.createDiv();
                 btnRow.style.marginTop = "12px";
                 btnRow.style.display = "flex";
                 btnRow.style.gap = "8px";
+                btnRow.style.flexShrink = "0";
                 const rst = btnRow.createEl("button", { text: "Restore This Version" });
                 rst.onclick = async () => {
                   const currentContent = await this.plugin.app.vault.read(curFile);
@@ -450,6 +581,10 @@ var init_ui = __esm({
                 };
                 const cls = btnRow.createEl("button", { text: "Close" });
                 cls.onclick = () => previewModal.close();
+                if (modalContainer) {
+                  makeDraggable(modalContainer, titleEl);
+                  makeResizable(modalContainer);
+                }
               };
               previewModal.open();
             };
@@ -618,7 +753,19 @@ var init_ui = __esm({
           row.style.paddingBottom = "8px";
           row.style.borderBottom = "1px solid var(--background-modifier-border)";
           const meta = document.createElement("div");
-          meta.textContent = snap.timestamp + (snap.reason ? ` (${snap.reason})` : "");
+          meta.style.display = "flex";
+          meta.style.flexDirection = "column";
+          meta.style.gap = "2px";
+          const nameLabel = document.createElement("span");
+          nameLabel.style.fontWeight = "500";
+          nameLabel.textContent = snap.reason || "(unnamed)";
+          meta.appendChild(nameLabel);
+          const timeLabel = document.createElement("span");
+          timeLabel.style.fontSize = "0.8em";
+          timeLabel.style.color = "var(--text-muted)";
+          const d = new Date(snap.timestamp);
+          timeLabel.textContent = `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+          meta.appendChild(timeLabel);
           row.appendChild(meta);
           const btn = document.createElement("button");
           btn.textContent = "Restore";
