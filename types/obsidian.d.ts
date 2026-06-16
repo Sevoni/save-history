@@ -57,6 +57,8 @@ declare module "obsidian" {
     registerEvent(event: EventRef): void;
     register(callback: () => void): void; // in case typings differ
     registerView(type: string, viewCreator: (leaf: WorkspaceLeaf) => ItemView): void;
+    loadData(): Promise<any>;
+    saveData(data: any): Promise<void>;
   }
 
   export interface Command {

@@ -1,5 +1,5 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer } from "obsidian";
-import { SaveHistoryPlugin } from "./main";
+import { SaveHistoryPlugin, type GroupByMode } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup } from "./storage";
 import type { SnapshotRecord } from "./storage";
 
@@ -102,8 +102,36 @@ export class SaveHistoryView extends ItemView {
     wrapper.style.height = "100%";
     wrapper.style.overflowY = "auto";
 
-    const header = wrapper.createEl("h3", { text: "File History" });
-    header.style.margin = "0 0 8px 0";
+    const headerRow = wrapper.createDiv();
+    headerRow.style.display = "flex";
+    headerRow.style.alignItems = "center";
+    headerRow.style.justifyContent = "space-between";
+    headerRow.style.margin = "0 0 8px 0";
+
+    const header = headerRow.createEl("h3", { text: "File History" });
+    header.style.margin = "0";
+
+    const groupSelect = headerRow.createEl("select");
+    groupSelect.style.fontSize = "0.8em";
+    groupSelect.style.padding = "2px 4px";
+    groupSelect.style.marginLeft = "8px";
+    const opts: { value: GroupByMode; label: string }[] = [
+      { value: "none", label: "No grouping" },
+      { value: "day", label: "By day" },
+      { value: "week", label: "By week" },
+    ];
+    for (const o of opts) {
+      const opt = groupSelect.createEl("option", { text: o.label });
+      (opt as HTMLOptionElement).value = o.value;
+      if (this.plugin.settings.groupBy === o.value) {
+        (opt as HTMLOptionElement).selected = true;
+      }
+    }
+    groupSelect.onchange = async () => {
+      this.plugin.settings.groupBy = (groupSelect as HTMLSelectElement).value as GroupByMode;
+      await this.plugin.saveSettings();
+      this.refresh();
+    };
 
     const activeFile = this.plugin.getActiveMarkdownFile();
     if (!activeFile) {
@@ -139,258 +167,74 @@ export class SaveHistoryView extends ItemView {
     if (snapshots.length === 0) {
       listContainer.createDiv({ text: "No saved versions yet." });
     } else {
-      for (const snap of snapshots) {
-        const item = listContainer.createDiv();
-        item.style.padding = "8px";
-        item.style.border = "1px solid var(--background-modifier-border)";
-        item.style.borderRadius = "4px";
-        item.style.display = "flex";
-        item.style.flexDirection = "column";
-        item.style.gap = "4px";
+      const groupBy = this.plugin.settings.groupBy;
 
-        const date = new Date(snap.timestamp);
+      if (groupBy === "none") {
+        for (const snap of snapshots) {
+          this.renderSnapshotItem(listContainer, snap, activeFile);
+        }
+      } else {
+        const groups = this.groupSnapshots(snapshots, groupBy);
+        for (const group of groups) {
+          const groupKey = group.key;
+          const isCollapsed = !!this.plugin.settings.collapsedGroups[groupKey];
 
-        const meta = item.createDiv();
-        meta.style.fontSize = "0.85em";
-        meta.style.display = "flex";
-        meta.style.flexDirection = "column";
-        meta.style.gap = "2px";
+          const groupEl = listContainer.createDiv();
+          groupEl.style.display = "flex";
+          groupEl.style.flexDirection = "column";
+          groupEl.style.gap = "4px";
 
-        const renderNormalState = () => {
-          meta.empty();
-          
-          const nameRow = meta.createDiv();
-          nameRow.style.display = "flex";
-          nameRow.style.alignItems = "center";
-          nameRow.style.justifyContent = "space-between";
+          const groupHeader = groupEl.createDiv();
+          groupHeader.style.display = "flex";
+          groupHeader.style.alignItems = "center";
+          groupHeader.style.cursor = "pointer";
+          groupHeader.style.padding = "6px 4px";
+          groupHeader.style.borderBottom = "1px solid var(--background-modifier-border)";
+          groupHeader.style.userSelect = "none";
 
-          const label = nameRow.createEl("span");
-          label.style.fontWeight = "500";
-          label.textContent = snap.reason;
+          const chevron = groupHeader.createEl("span", { text: isCollapsed ? "▸ " : "▾ " });
+          chevron.style.fontSize = "0.9em";
+          chevron.style.marginRight = "4px";
 
-          const editBtn = nameRow.createEl("span", { text: "✏️" });
-          editBtn.style.cursor = "pointer";
-          editBtn.style.marginLeft = "6px";
-          editBtn.title = "Rename version";
-          editBtn.onclick = (e) => {
-            e.stopPropagation();
-            renderEditState();
-          };
+          const groupTitle = groupHeader.createEl("span");
+          groupTitle.style.fontWeight = "600";
+          groupTitle.style.fontSize = "0.9em";
+          groupTitle.textContent = group.label;
 
-          const timeRow = meta.createDiv();
-          timeRow.style.fontSize = "0.8em";
-          timeRow.style.color = "var(--text-muted)";
-          timeRow.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-        };
+          const count = groupHeader.createEl("span", { text: ` (${group.snapshots.length})` });
+          count.style.fontSize = "0.8em";
+          count.style.color = "var(--text-muted)";
+          count.style.marginLeft = "4px";
 
-        const renderEditState = () => {
-          meta.empty();
-          
-          const input = meta.createEl("input");
-          input.type = "text";
-          input.value = snap.reason;
-          input.style.flexGrow = "1";
-          input.style.marginRight = "6px";
-          input.style.fontSize = "0.95em";
-          input.style.padding = "2px 4px";
-          input.style.height = "24px";
-          
-          const saveLabel = async () => {
-            const val = input.value.trim();
-            if (val === "") return;
-            const success = await updateSnapshotLabel(this.plugin, snap.filePath, val);
-            if (success) {
-              this.plugin.toast("Label updated.");
-              this.refresh();
-            } else {
-              this.plugin.toast("Failed to update label.");
-              renderNormalState();
-            }
-          };
-
-          input.onkeydown = async (ev) => {
-            if (ev.key === "Enter") {
-              ev.preventDefault();
-              await saveLabel();
-            } else if (ev.key === "Escape") {
-              ev.preventDefault();
-              renderNormalState();
-            }
-          };
-
-          const controls = meta.createDiv();
-          controls.style.display = "flex";
-          controls.style.gap = "4px";
-
-          const okBtn = controls.createEl("span", { text: "✔️" });
-          okBtn.style.cursor = "pointer";
-          okBtn.title = "Save";
-          okBtn.onclick = async (ev) => {
-            ev.stopPropagation();
-            await saveLabel();
-          };
-
-          const cancelBtn = controls.createEl("span", { text: "❌" });
-          cancelBtn.style.cursor = "pointer";
-          cancelBtn.title = "Cancel";
-          cancelBtn.onclick = (ev) => {
-            ev.stopPropagation();
-            renderNormalState();
-          };
-
-          // Auto-focus input
-          setTimeout(() => input.focus(), 50);
-        };
-
-        renderNormalState();
-
-        const actions = item.createDiv();
-        actions.style.display = "flex";
-        actions.style.flexWrap = "wrap";
-        actions.style.gap = "4px";
-
-        const restoreBtn = actions.createEl("button", { text: "Restore" });
-        restoreBtn.style.flex = "1 1 70px";
-        restoreBtn.onclick = async () => {
-          const curFile = this.plugin.getActiveMarkdownFile();
-          if (!curFile) return;
-
-          // Auto-save current content as "pre-restore" backup before restoring
-          const currentContent = await this.plugin.app.vault.read(curFile);
-          await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
-
-          const restored = await readSnapshotContent(this.plugin, snap.filePath);
-          if (!restored) {
-            this.plugin.toast("Failed to load selected snapshot.");
-            return;
+          const itemsEl = groupEl.createDiv();
+          itemsEl.style.display = "flex";
+          itemsEl.style.flexDirection = "column";
+          itemsEl.style.gap = "8px";
+          itemsEl.style.paddingLeft = "8px";
+          itemsEl.style.paddingTop = "4px";
+          itemsEl.style.overflow = "hidden";
+          if (isCollapsed) {
+            itemsEl.style.display = "none";
           }
-          await this.versioning.restoreFromSnapshot(curFile, restored);
-          this.plugin.toast("Version restored. Current state backed up below.");
-          this.refresh();
-        };
 
-        const previewBtn = actions.createEl("button", { text: "Preview" });
-        previewBtn.style.flex = "1 1 70px";
-        previewBtn.onclick = async () => {
-          const curFile = this.plugin.getActiveMarkdownFile();
-          if (!curFile) return;
-          const restored = await readSnapshotContent(this.plugin, snap.filePath);
-          if (!restored) return;
-          
-          // Simple preview modal
-          const previewModal = new Modal(this.plugin.app);
-          previewModal.onOpen = () => {
-            const el = previewModal.contentEl;
-            el.empty();
-
-            const modalContainer = (previewModal as any).modalEl as HTMLElement;
-            if (modalContainer) {
-              modalContainer.style.width = "800px";
-              modalContainer.style.height = "70vh";
-              modalContainer.style.minWidth = "320px";
-              modalContainer.style.minHeight = "200px";
-              modalContainer.style.position = "relative";
-              modalContainer.style.display = "flex";
-              modalContainer.style.flexDirection = "column";
-              modalContainer.style.overflow = "hidden";
-            }
-
-            el.style.display = "flex";
-            el.style.flexDirection = "column";
-            el.style.flex = "1";
-            el.style.overflow = "hidden";
-
-            const titleEl = el.createEl("h2");
-            titleEl.textContent = snap.reason;
-            titleEl.style.marginBottom = "2px";
-            titleEl.style.cursor = "move";
-            titleEl.style.userSelect = "none";
-            titleEl.style.flexShrink = "0";
-
-            const timeEl = el.createDiv();
-            timeEl.style.fontSize = "0.85em";
-            timeEl.style.color = "var(--text-muted)";
-            timeEl.style.marginBottom = "12px";
-            timeEl.style.flexShrink = "0";
-            timeEl.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-
-            const content = el.createDiv();
-            content.style.flex = "1";
-            content.style.overflowY = "auto";
-            content.style.padding = "10px";
-            content.style.border = "1px solid var(--background-modifier-border)";
-            content.style.borderRadius = "4px";
-            content.style.backgroundColor = "var(--background-primary)";
-            content.classList.add("markdown-preview-view");
-
-            MarkdownRenderer.render(this.plugin.app, restored.content, content, curFile.path, previewModal);
-            
-            const btnRow = el.createDiv();
-            btnRow.style.marginTop = "12px";
-            btnRow.style.display = "flex";
-            btnRow.style.gap = "8px";
-            btnRow.style.flexShrink = "0";
-            
-            const rst = btnRow.createEl("button", { text: "Restore This Version" });
-            rst.onclick = async () => {
-              const currentContent = await this.plugin.app.vault.read(curFile);
-              await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
-
-              await this.versioning.restoreFromSnapshot(curFile, restored);
-              this.plugin.toast("Version restored. Current state backed up below.");
-              previewModal.close();
-              this.refresh();
-            };
-            
-            const cls = btnRow.createEl("button", { text: "Close" });
-            cls.onclick = () => previewModal.close();
-
-            if (modalContainer) {
-              makeDraggable(modalContainer, titleEl);
-              makeResizable(modalContainer);
-            }
-          };
-          previewModal.open();
-        };
-
-        const deleteBtn = actions.createEl("button", { text: "Delete" });
-        deleteBtn.style.flex = "1 1 70px";
-        deleteBtn.style.color = "var(--text-error)";
-        deleteBtn.onclick = async (e) => {
-          e.stopPropagation();
-          const curFile = this.plugin.getActiveMarkdownFile();
-          if (!curFile) return;
-          
-          actions.empty();
-          
-          const confirmText = actions.createEl("span", { text: "Delete?" });
-          confirmText.style.fontSize = "0.85em";
-          confirmText.style.color = "var(--text-error)";
-          confirmText.style.alignSelf = "center";
-          
-          const yesBtn = actions.createEl("button", { text: "Yes" });
-          yesBtn.style.flex = "1 1 50px";
-          yesBtn.style.backgroundColor = "var(--background-modifier-error)";
-          yesBtn.style.color = "white";
-          yesBtn.onclick = async (ev) => {
-            ev.stopPropagation();
-            const success = await deleteSnapshotFile(this.plugin, snap.filePath);
-            if (success) {
-              this.plugin.toast("Version deleted.");
-              this.refresh();
+          groupHeader.onclick = async () => {
+            const collapsed = this.plugin.settings.collapsedGroups[groupKey];
+            if (collapsed) {
+              delete this.plugin.settings.collapsedGroups[groupKey];
+              itemsEl.style.display = "flex";
+              chevron.textContent = "▾ ";
             } else {
-              this.plugin.toast("Failed to delete version.");
-              this.refresh();
+              this.plugin.settings.collapsedGroups[groupKey] = true;
+              itemsEl.style.display = "none";
+              chevron.textContent = "▸ ";
             }
+            await this.plugin.saveSettings();
           };
-          
-          const noBtn = actions.createEl("button", { text: "No" });
-          noBtn.style.flex = "1 1 50px";
-          noBtn.onclick = (ev) => {
-            ev.stopPropagation();
-            this.refresh();
-          };
-        };
+
+          for (const snap of group.snapshots) {
+            this.renderSnapshotItem(itemsEl, snap, activeFile);
+          }
+        }
       }
     }
 
@@ -428,18 +272,15 @@ export class SaveHistoryView extends ItemView {
         const curFile = this.plugin.getActiveMarkdownFile();
         if (!curFile) return;
 
-        // 1. Read the backup content FIRST before saving the new pre-restore backup (which deletes the old one)
         const restored = await readSnapshotContent(this.plugin, preRestoreBackup.filePath);
         if (!restored) {
           this.plugin.toast("Failed to load backup.");
           return;
         }
         
-        // 2. Auto-save the CURRENT state as a backup (so the user can toggle back and forth!)
         const currentContent = await this.plugin.app.vault.read(curFile);
         await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
 
-        // 3. Restore the backup content
         await this.versioning.restoreFromSnapshot(curFile, restored);
         this.plugin.toast("Backup restored.");
         this.refresh();
@@ -484,6 +325,308 @@ export class SaveHistoryView extends ItemView {
         };
       };
     }
+  }
+
+  private groupSnapshots(
+    snapshots: (SnapshotRecord & { filePath: string })[],
+    groupBy: GroupByMode
+  ): { key: string; label: string; snapshots: (SnapshotRecord & { filePath: string })[] }[] {
+    const groups = new Map<string, { key: string; label: string; snapshots: (SnapshotRecord & { filePath: string })[] }>();
+
+    for (const snap of snapshots) {
+      const date = new Date(snap.timestamp);
+      let key: string;
+      let label: string;
+
+      if (groupBy === "day") {
+        key = date.toISOString().slice(0, 10);
+        label = date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+      } else {
+        const weekStart = this.getWeekStart(date);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        key = weekStart.toISOString().slice(0, 10);
+        const startLabel = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        const endLabel = weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        label = `${startLabel} – ${endLabel}`;
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, { key, label, snapshots: [] });
+      }
+      groups.get(key)!.snapshots.push(snap);
+    }
+
+    return Array.from(groups.values());
+  }
+
+  private getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return d;
+  }
+
+  private renderSnapshotItem(
+    parent: HTMLElement,
+    snap: SnapshotRecord & { filePath: string },
+    activeFile: TFile
+  ) {
+    const item = parent.createDiv();
+    item.style.padding = "8px";
+    item.style.border = "1px solid var(--background-modifier-border)";
+    item.style.borderRadius = "4px";
+    item.style.display = "flex";
+    item.style.flexDirection = "column";
+    item.style.gap = "4px";
+
+    const date = new Date(snap.timestamp);
+
+    const meta = item.createDiv();
+    meta.style.fontSize = "0.85em";
+    meta.style.display = "flex";
+    meta.style.flexDirection = "column";
+    meta.style.gap = "2px";
+
+    const renderNormalState = () => {
+      meta.empty();
+      
+      const nameRow = meta.createDiv();
+      nameRow.style.display = "flex";
+      nameRow.style.alignItems = "center";
+      nameRow.style.justifyContent = "space-between";
+
+      const label = nameRow.createEl("span");
+      label.style.fontWeight = "500";
+      label.textContent = snap.reason;
+
+      const editBtn = nameRow.createEl("span", { text: "✏️" });
+      editBtn.style.cursor = "pointer";
+      editBtn.style.marginLeft = "6px";
+      editBtn.title = "Rename version";
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        renderEditState();
+      };
+
+      const timeRow = meta.createDiv();
+      timeRow.style.fontSize = "0.8em";
+      timeRow.style.color = "var(--text-muted)";
+      const groupBy = this.plugin.settings.groupBy;
+      if (groupBy === "day") {
+        timeRow.textContent = date.toLocaleTimeString();
+      } else {
+        timeRow.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+      }
+    };
+
+    const renderEditState = () => {
+      meta.empty();
+      
+      const input = meta.createEl("input");
+      input.type = "text";
+      input.value = snap.reason;
+      input.style.flexGrow = "1";
+      input.style.marginRight = "6px";
+      input.style.fontSize = "0.95em";
+      input.style.padding = "2px 4px";
+      input.style.height = "24px";
+      
+      const saveLabel = async () => {
+        const val = input.value.trim();
+        if (val === "") return;
+        const success = await updateSnapshotLabel(this.plugin, snap.filePath, val);
+        if (success) {
+          this.plugin.toast("Label updated.");
+          this.refresh();
+        } else {
+          this.plugin.toast("Failed to update label.");
+          renderNormalState();
+        }
+      };
+
+      input.onkeydown = async (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          await saveLabel();
+        } else if (ev.key === "Escape") {
+          ev.preventDefault();
+          renderNormalState();
+        }
+      };
+
+      const controls = meta.createDiv();
+      controls.style.display = "flex";
+      controls.style.gap = "4px";
+
+      const okBtn = controls.createEl("span", { text: "✔️" });
+      okBtn.style.cursor = "pointer";
+      okBtn.title = "Save";
+      okBtn.onclick = async (ev) => {
+        ev.stopPropagation();
+        await saveLabel();
+      };
+
+      const cancelBtn = controls.createEl("span", { text: "❌" });
+      cancelBtn.style.cursor = "pointer";
+      cancelBtn.title = "Cancel";
+      cancelBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        renderNormalState();
+      };
+
+      setTimeout(() => input.focus(), 50);
+    };
+
+    renderNormalState();
+
+    const actions = item.createDiv();
+    actions.style.display = "flex";
+    actions.style.flexWrap = "wrap";
+    actions.style.gap = "4px";
+
+    const restoreBtn = actions.createEl("button", { text: "Restore" });
+    restoreBtn.style.flex = "1 1 70px";
+    restoreBtn.onclick = async () => {
+      const curFile = this.plugin.getActiveMarkdownFile();
+      if (!curFile) return;
+
+      const currentContent = await this.plugin.app.vault.read(curFile);
+      await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
+
+      const restored = await readSnapshotContent(this.plugin, snap.filePath);
+      if (!restored) {
+        this.plugin.toast("Failed to load selected snapshot.");
+        return;
+      }
+      await this.versioning.restoreFromSnapshot(curFile, restored);
+      this.plugin.toast("Version restored. Current state backed up below.");
+      this.refresh();
+    };
+
+    const previewBtn = actions.createEl("button", { text: "Preview" });
+    previewBtn.style.flex = "1 1 70px";
+    previewBtn.onclick = async () => {
+      const curFile = this.plugin.getActiveMarkdownFile();
+      if (!curFile) return;
+      const restored = await readSnapshotContent(this.plugin, snap.filePath);
+      if (!restored) return;
+      
+      const previewModal = new Modal(this.plugin.app);
+      previewModal.onOpen = () => {
+        const el = previewModal.contentEl;
+        el.empty();
+
+        const modalContainer = (previewModal as any).modalEl as HTMLElement;
+        if (modalContainer) {
+          modalContainer.style.width = "800px";
+          modalContainer.style.height = "70vh";
+          modalContainer.style.minWidth = "320px";
+          modalContainer.style.minHeight = "200px";
+          modalContainer.style.position = "relative";
+          modalContainer.style.display = "flex";
+          modalContainer.style.flexDirection = "column";
+          modalContainer.style.overflow = "hidden";
+        }
+
+        el.style.display = "flex";
+        el.style.flexDirection = "column";
+        el.style.flex = "1";
+        el.style.overflow = "hidden";
+
+        const titleEl = el.createEl("h2");
+        titleEl.textContent = snap.reason;
+        titleEl.style.marginBottom = "2px";
+        titleEl.style.cursor = "move";
+        titleEl.style.userSelect = "none";
+        titleEl.style.flexShrink = "0";
+
+        const timeEl = el.createDiv();
+        timeEl.style.fontSize = "0.85em";
+        timeEl.style.color = "var(--text-muted)";
+        timeEl.style.marginBottom = "12px";
+        timeEl.style.flexShrink = "0";
+        timeEl.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+
+        const content = el.createDiv();
+        content.style.flex = "1";
+        content.style.overflowY = "auto";
+        content.style.padding = "10px";
+        content.style.border = "1px solid var(--background-modifier-border)";
+        content.style.borderRadius = "4px";
+        content.style.backgroundColor = "var(--background-primary)";
+        content.classList.add("markdown-preview-view");
+
+        MarkdownRenderer.render(this.plugin.app, restored.content, content, curFile.path, previewModal);
+        
+        const btnRow = el.createDiv();
+        btnRow.style.marginTop = "12px";
+        btnRow.style.display = "flex";
+        btnRow.style.gap = "8px";
+        btnRow.style.flexShrink = "0";
+        
+        const rst = btnRow.createEl("button", { text: "Restore This Version" });
+        rst.onclick = async () => {
+          const currentContent = await this.plugin.app.vault.read(curFile);
+          await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
+
+          await this.versioning.restoreFromSnapshot(curFile, restored);
+          this.plugin.toast("Version restored. Current state backed up below.");
+          previewModal.close();
+          this.refresh();
+        };
+        
+        const cls = btnRow.createEl("button", { text: "Close" });
+        cls.onclick = () => previewModal.close();
+
+        if (modalContainer) {
+          makeDraggable(modalContainer, titleEl);
+          makeResizable(modalContainer);
+        }
+      };
+      previewModal.open();
+    };
+
+    const deleteBtn = actions.createEl("button", { text: "Delete" });
+    deleteBtn.style.flex = "1 1 70px";
+    deleteBtn.style.color = "var(--text-error)";
+    deleteBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const curFile = this.plugin.getActiveMarkdownFile();
+      if (!curFile) return;
+      
+      actions.empty();
+      
+      const confirmText = actions.createEl("span", { text: "Delete?" });
+      confirmText.style.fontSize = "0.85em";
+      confirmText.style.color = "var(--text-error)";
+      confirmText.style.alignSelf = "center";
+      
+      const yesBtn = actions.createEl("button", { text: "Yes" });
+      yesBtn.style.flex = "1 1 50px";
+      yesBtn.style.backgroundColor = "var(--background-modifier-error)";
+      yesBtn.style.color = "white";
+      yesBtn.onclick = async (ev) => {
+        ev.stopPropagation();
+        const success = await deleteSnapshotFile(this.plugin, snap.filePath);
+        if (success) {
+          this.plugin.toast("Version deleted.");
+          this.refresh();
+        } else {
+          this.plugin.toast("Failed to delete version.");
+          this.refresh();
+        }
+      };
+      
+      const noBtn = actions.createEl("button", { text: "No" });
+      noBtn.style.flex = "1 1 50px";
+      noBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        this.refresh();
+      };
+    };
   }
 
   async refresh() {
