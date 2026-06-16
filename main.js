@@ -252,6 +252,35 @@ var init_diff = __esm({
 });
 
 // src/ui.ts
+async function resolveImagesInMarkdown(plugin, markdown, sourcePath) {
+  const adapter = plugin.app.vault.adapter;
+  const parentFolder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
+  const wikiImageRegex = /!\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]/g;
+  const mdImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  let result = markdown;
+  const matches = [];
+  let m;
+  while ((m = wikiImageRegex.exec(markdown)) !== null) {
+    matches.push({ full: m[0], path: m[1].trim() });
+  }
+  while ((m = mdImageRegex.exec(markdown)) !== null) {
+    matches.push({ full: m[0], path: m[2].trim() });
+  }
+  for (const match of matches) {
+    const imgPath = match.path.startsWith("/") ? match.path.substring(1) : parentFolder ? `${parentFolder}/${match.path}` : match.path;
+    try {
+      if (await adapter.exists(imgPath)) {
+        const data = await adapter.read(imgPath);
+        const ext = imgPath.split(".").pop()?.toLowerCase() || "png";
+        const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "svg" ? "image/svg+xml" : ext === "webp" ? "image/webp" : "image/png";
+        const dataUrl = `data:${mime};base64,${btoa(unescape(encodeURIComponent(data)))}`;
+        result = result.split(match.full).join(`![image](${dataUrl})`);
+      }
+    } catch {
+    }
+  }
+  return result;
+}
 function registerCommands(plugin, versioning) {
   plugin.addCommand?.({
     id: "save-history:save-now",
@@ -305,7 +334,7 @@ function registerCommands(plugin, versioning) {
     }
   });
 }
-async function appendDiffRow(parent, app, line, sourcePath) {
+async function appendDiffRow(parent, app, line, sourcePath, component) {
   const row = parent.createDiv();
   row.className = `sh-diff-row sh-diff-row-${line.type}`;
   const numCol = row.createDiv();
@@ -320,7 +349,8 @@ async function appendDiffRow(parent, app, line, sourcePath) {
   textCol.className = "sh-diff-row-text";
   if (line.text.length > 0) {
     try {
-      await import_obsidian.MarkdownRenderer.render(app, line.text, textCol, sourcePath, {});
+      const resolved = await resolveImagesInMarkdown(component, line.text, sourcePath);
+      await import_obsidian.MarkdownRenderer.render(app, resolved, textCol, sourcePath, component);
     } catch {
       textCol.createEl("span", { text: line.text });
     }
@@ -874,7 +904,7 @@ var init_ui = __esm({
           const restored = await readSnapshotContent(this.plugin, snap.filePath);
           if (!restored) return;
           const previewModal = new import_obsidian.Modal(this.plugin.app);
-          previewModal.onOpen = () => {
+          previewModal.onOpen = async () => {
             const el = previewModal.contentEl;
             el.empty();
             const modalContainer = previewModal.modalEl;
@@ -912,7 +942,15 @@ var init_ui = __esm({
             content.style.borderRadius = "4px";
             content.style.backgroundColor = "var(--background-primary)";
             content.classList.add("markdown-preview-view");
-            import_obsidian.MarkdownRenderer.render(this.plugin.app, restored.content, content, curFile.path, previewModal);
+            const imgStyle = document.createElement("style");
+            imgStyle.textContent = `
+          .sh-preview-content img { max-width: 100%; height: auto; }
+          .sh-preview-content svg { max-width: 100%; }
+        `;
+            content.appendChild(imgStyle);
+            content.classList.add("sh-preview-content");
+            const resolvedContent = await resolveImagesInMarkdown(this.plugin, restored.content, curFile.path);
+            await import_obsidian.MarkdownRenderer.render(this.plugin.app, resolvedContent, content, curFile.path, this.plugin);
             const btnRow = el.createDiv();
             btnRow.style.marginTop = "12px";
             btnRow.style.display = "flex";
@@ -1221,6 +1259,7 @@ var init_ui = __esm({
         const curFile = this.plugin.getActiveMarkdownFile();
         const sourcePath = curFile?.path ?? "";
         const app = this.plugin.app;
+        const plugin = this.plugin;
         const COLLAPSE = 4;
         const renderRows = async () => {
           let eqRun = [];
@@ -1228,7 +1267,7 @@ var init_ui = __esm({
             if (eqRun.length === 0) return;
             if (eqRun.length > COLLAPSE * 2) {
               for (const line of eqRun.slice(0, COLLAPSE)) {
-                await appendDiffRow(diffContainer, app, line, sourcePath);
+                await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
               }
               const hidden = eqRun.slice(COLLAPSE, eqRun.length - COLLAPSE);
               const bar = diffContainer.createDiv();
@@ -1237,7 +1276,7 @@ var init_ui = __esm({
               const hiddenEl = diffContainer.createDiv();
               hiddenEl.className = "sh-diff-hidden";
               for (const line of hidden) {
-                await appendDiffRow(hiddenEl, app, line, sourcePath);
+                await appendDiffRow(hiddenEl, app, line, sourcePath, plugin);
               }
               let expanded = false;
               bar.onclick = () => {
@@ -1251,11 +1290,11 @@ var init_ui = __esm({
                 }
               };
               for (const line of eqRun.slice(eqRun.length - COLLAPSE)) {
-                await appendDiffRow(diffContainer, app, line, sourcePath);
+                await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
               }
             } else {
               for (const line of eqRun) {
-                await appendDiffRow(diffContainer, app, line, sourcePath);
+                await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
               }
             }
             eqRun = [];
@@ -1265,7 +1304,7 @@ var init_ui = __esm({
               eqRun.push(line);
             } else {
               await flushEq();
-              await appendDiffRow(diffContainer, app, line, sourcePath);
+              await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
             }
           }
           await flushEq();

@@ -4,6 +4,48 @@ import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSn
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 
+async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: string, sourcePath: string): Promise<string> {
+  const adapter = plugin.app.vault.adapter;
+  const parentFolder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
+
+  const wikiImageRegex = /!\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]/g;
+  const mdImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+
+  let result = markdown;
+
+  const matches: { full: string; path: string }[] = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = wikiImageRegex.exec(markdown)) !== null) {
+    matches.push({ full: m[0], path: m[1].trim() });
+  }
+  while ((m = mdImageRegex.exec(markdown)) !== null) {
+    matches.push({ full: m[0], path: m[2].trim() });
+  }
+
+  for (const match of matches) {
+    const imgPath = match.path.startsWith("/") ? match.path.substring(1) : (parentFolder ? `${parentFolder}/${match.path}` : match.path);
+
+    try {
+      if (await adapter.exists(imgPath)) {
+        const data = await adapter.read(imgPath);
+        const ext = imgPath.split(".").pop()?.toLowerCase() || "png";
+        const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+          : ext === "gif" ? "image/gif"
+          : ext === "svg" ? "image/svg+xml"
+          : ext === "webp" ? "image/webp"
+          : "image/png";
+        const dataUrl = `data:${mime};base64,${btoa(unescape(encodeURIComponent(data)))}`;
+        result = result.split(match.full).join(`![image](${dataUrl})`);
+      }
+    } catch {
+      // skip unresolvable images
+    }
+  }
+
+  return result;
+}
+
 export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
 
 export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
@@ -601,7 +643,7 @@ export class SaveHistoryView extends ItemView {
       if (!restored) return;
       
       const previewModal = new Modal(this.plugin.app);
-      previewModal.onOpen = () => {
+      previewModal.onOpen = async () => {
         const el = previewModal.contentEl;
         el.empty();
 
@@ -645,7 +687,16 @@ export class SaveHistoryView extends ItemView {
         content.style.backgroundColor = "var(--background-primary)";
         content.classList.add("markdown-preview-view");
 
-        MarkdownRenderer.render(this.plugin.app, restored.content, content, curFile.path, previewModal);
+        const imgStyle = document.createElement("style");
+        imgStyle.textContent = `
+          .sh-preview-content img { max-width: 100%; height: auto; }
+          .sh-preview-content svg { max-width: 100%; }
+        `;
+        content.appendChild(imgStyle);
+        content.classList.add("sh-preview-content");
+
+        const resolvedContent = await resolveImagesInMarkdown(this.plugin, restored.content, curFile.path);
+        await MarkdownRenderer.render(this.plugin.app, resolvedContent, content, curFile.path, this.plugin);
         
         const btnRow = el.createDiv();
         btnRow.style.marginTop = "12px";
@@ -1024,6 +1075,7 @@ class DiffModal extends Modal {
     const curFile = this.plugin.getActiveMarkdownFile();
     const sourcePath = curFile?.path ?? "";
     const app = this.plugin.app;
+    const plugin = this.plugin;
     const COLLAPSE = 4;
 
     const renderRows = async () => {
@@ -1033,7 +1085,7 @@ class DiffModal extends Modal {
         if (eqRun.length === 0) return;
         if (eqRun.length > COLLAPSE * 2) {
           for (const line of eqRun.slice(0, COLLAPSE)) {
-            await appendDiffRow(diffContainer, app, line, sourcePath);
+            await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
           }
           const hidden = eqRun.slice(COLLAPSE, eqRun.length - COLLAPSE);
           const bar = diffContainer.createDiv();
@@ -1042,7 +1094,7 @@ class DiffModal extends Modal {
           const hiddenEl = diffContainer.createDiv();
           hiddenEl.className = "sh-diff-hidden";
           for (const line of hidden) {
-            await appendDiffRow(hiddenEl, app, line, sourcePath);
+            await appendDiffRow(hiddenEl, app, line, sourcePath, plugin);
           }
           let expanded = false;
           bar.onclick = () => {
@@ -1056,11 +1108,11 @@ class DiffModal extends Modal {
             }
           };
           for (const line of eqRun.slice(eqRun.length - COLLAPSE)) {
-            await appendDiffRow(diffContainer, app, line, sourcePath);
+            await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
           }
         } else {
           for (const line of eqRun) {
-            await appendDiffRow(diffContainer, app, line, sourcePath);
+            await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
           }
         }
         eqRun = [];
@@ -1071,7 +1123,7 @@ class DiffModal extends Modal {
           eqRun.push(line);
         } else {
           await flushEq();
-          await appendDiffRow(diffContainer, app, line, sourcePath);
+          await appendDiffRow(diffContainer, app, line, sourcePath, plugin);
         }
       }
       await flushEq();
@@ -1099,7 +1151,8 @@ async function appendDiffRow(
   parent: HTMLElement,
   app: any,
   line: DiffLine,
-  sourcePath: string
+  sourcePath: string,
+  component: any
 ) {
   const row = parent.createDiv();
   row.className = `sh-diff-row sh-diff-row-${line.type}`;
@@ -1119,7 +1172,8 @@ async function appendDiffRow(
 
   if (line.text.length > 0) {
     try {
-      await MarkdownRenderer.render(app, line.text, textCol, sourcePath, {} as any);
+        const resolved = await resolveImagesInMarkdown(component, line.text, sourcePath);
+        await MarkdownRenderer.render(app, resolved, textCol, sourcePath, component);
     } catch {
       textCol.createEl("span", { text: line.text });
     }
