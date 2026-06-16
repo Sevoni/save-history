@@ -2,6 +2,7 @@ import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer } from "obsidia
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup } from "./storage";
 import type { SnapshotRecord } from "./storage";
+import { computeDiff, type DiffLine } from "./diff";
 
 export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
 
@@ -67,6 +68,8 @@ export class SaveHistoryView extends ItemView {
   private plugin: SaveHistoryPlugin;
   private versioning: any;
   private container: HTMLElement;
+  private diffMode: boolean = false;
+  private diffSelection: (SnapshotRecord & { filePath: string })[] = [];
 
   constructor(leaf: WorkspaceLeaf, plugin: SaveHistoryPlugin, versioning: any) {
     super(leaf);
@@ -154,6 +157,44 @@ export class SaveHistoryView extends ItemView {
       this.plugin.toast("Version saved.");
       this.refresh();
     };
+
+    const diffBtnRow = wrapper.createDiv();
+    diffBtnRow.style.display = "flex";
+    diffBtnRow.style.gap = "6px";
+
+    const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? "Cancel Diff" : "Diff Two Versions" });
+    diffToggleBtn.style.flex = "1";
+    diffToggleBtn.onclick = () => {
+      this.diffMode = !this.diffMode;
+      this.diffSelection = [];
+      this.refresh();
+    };
+
+    if (this.diffMode && this.diffSelection.length === 2) {
+      const diffGoBtn = diffBtnRow.createEl("button", { text: "Show Diff" });
+      diffGoBtn.style.flex = "1";
+      diffGoBtn.style.fontWeight = "600";
+      diffGoBtn.onclick = async () => {
+        const recOld = await readSnapshotContent(this.plugin, this.diffSelection[1].filePath);
+        const recNew = await readSnapshotContent(this.plugin, this.diffSelection[0].filePath);
+        if (!recOld || !recNew) {
+          this.plugin.toast("Failed to load snapshot content.");
+          return;
+        }
+        new DiffModal(this.plugin, this.diffSelection[1], this.diffSelection[0], recOld.content, recNew.content).open();
+        this.diffMode = false;
+        this.diffSelection = [];
+        this.refresh();
+      };
+    }
+
+    if (this.diffMode && this.diffSelection.length > 0) {
+      const diffClearBtn = diffBtnRow.createEl("button", { text: "Clear" });
+      diffClearBtn.onclick = () => {
+        this.diffSelection = [];
+        this.refresh();
+      };
+    }
 
     const listContainer = wrapper.createDiv();
     listContainer.style.display = "flex";
@@ -382,6 +423,12 @@ export class SaveHistoryView extends ItemView {
     item.style.flexDirection = "column";
     item.style.gap = "4px";
 
+    const isSelected = this.diffSelection.some(s => s.filePath === snap.filePath);
+    if (isSelected) {
+      item.style.backgroundColor = "var(--interactive-accent)";
+      item.style.color = "var(--text-on-accent)";
+    }
+
     const date = new Date(snap.timestamp);
 
     const meta = item.createDiv();
@@ -398,22 +445,37 @@ export class SaveHistoryView extends ItemView {
       nameRow.style.alignItems = "center";
       nameRow.style.justifyContent = "space-between";
 
+      let selectionLabel: string | null = null;
+      if (this.diffMode) {
+        const idx = this.diffSelection.findIndex(s => s.filePath === snap.filePath);
+        if (idx === 0) selectionLabel = "1 (newer)";
+        else if (idx === 1) selectionLabel = "2 (older)";
+      }
+
       const label = nameRow.createEl("span");
       label.style.fontWeight = "500";
       label.textContent = snap.reason;
 
-      const editBtn = nameRow.createEl("span", { text: "✏️" });
-      editBtn.style.cursor = "pointer";
-      editBtn.style.marginLeft = "6px";
-      editBtn.title = "Rename version";
-      editBtn.onclick = (e) => {
-        e.stopPropagation();
-        renderEditState();
-      };
+      if (selectionLabel) {
+        const selSpan = nameRow.createEl("span", { text: ` [${selectionLabel}]` });
+        selSpan.style.fontSize = "0.8em";
+        selSpan.style.fontWeight = "700";
+      }
+
+      if (!this.diffMode) {
+        const editBtn = nameRow.createEl("span", { text: "✏️" });
+        editBtn.style.cursor = "pointer";
+        editBtn.style.marginLeft = "6px";
+        editBtn.title = "Rename version";
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          renderEditState();
+        };
+      }
 
       const timeRow = meta.createDiv();
       timeRow.style.fontSize = "0.8em";
-      timeRow.style.color = "var(--text-muted)";
+      timeRow.style.color = isSelected ? "var(--text-on-accent)" : "var(--text-muted)";
       const groupBy = this.plugin.settings.groupBy;
       if (groupBy === "day") {
         timeRow.textContent = date.toLocaleTimeString();
@@ -481,6 +543,30 @@ export class SaveHistoryView extends ItemView {
     };
 
     renderNormalState();
+
+    if (this.diffMode) {
+      const diffSelectBtn = item.createEl("button", {
+        text: isSelected
+          ? "Deselect"
+          : this.diffSelection.length < 2
+          ? "Select for Diff"
+          : "Replace Selection"
+      });
+      diffSelectBtn.style.width = "100%";
+      diffSelectBtn.style.fontSize = "0.85em";
+      diffSelectBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (isSelected) {
+          this.diffSelection = this.diffSelection.filter(s => s.filePath !== snap.filePath);
+        } else if (this.diffSelection.length < 2) {
+          this.diffSelection.push(snap);
+        } else {
+          this.diffSelection[1] = snap;
+        }
+        this.refresh();
+      };
+      return;
+    }
 
     const actions = item.createDiv();
     actions.style.display = "flex";
@@ -656,7 +742,6 @@ class RestoreVersionModal extends Modal {
 
     const root = contentEl ?? document.createElement("div");
 
-    // Clear
     root.innerHTML = "";
 
     const title = document.createElement("h2");
@@ -677,9 +762,7 @@ class RestoreVersionModal extends Modal {
     closeBtn.onclick = () => this.close();
     root.appendChild(closeBtn);
 
-    // ensure root is attached if obsidian didn't attach contentEl
     if (!contentEl) {
-      // best-effort: do nothing
     }
   }
 
@@ -751,6 +834,295 @@ class RestoreVersionModal extends Modal {
     await this.versioning.restoreFromSnapshot(this.file, restored);
     this.plugin.toast("Version restored.");
     this.close();
+  }
+}
+
+class DiffModal extends Modal {
+  private plugin: SaveHistoryPlugin;
+  private snapOld: SnapshotRecord & { filePath: string };
+  private snapNew: SnapshotRecord & { filePath: string };
+  private contentOld: string;
+  private contentNew: string;
+
+  constructor(
+    plugin: SaveHistoryPlugin,
+    snapOld: SnapshotRecord & { filePath: string },
+    snapNew: SnapshotRecord & { filePath: string },
+    contentOld: string,
+    contentNew: string
+  ) {
+    super(plugin.app);
+    this.plugin = plugin;
+    this.snapOld = snapOld;
+    this.snapNew = snapNew;
+    this.contentOld = contentOld;
+    this.contentNew = contentNew;
+  }
+
+  onOpen() {
+    const el = this.contentEl;
+    el.empty();
+
+    const modalContainer = (this as any).modalEl as HTMLElement;
+    if (modalContainer) {
+      modalContainer.style.width = "900px";
+      modalContainer.style.height = "80vh";
+      modalContainer.style.minWidth = "400px";
+      modalContainer.style.minHeight = "300px";
+      modalContainer.style.position = "relative";
+      modalContainer.style.display = "flex";
+      modalContainer.style.flexDirection = "column";
+      modalContainer.style.overflow = "hidden";
+    }
+
+    el.style.display = "flex";
+    el.style.flexDirection = "column";
+    el.style.flex = "1";
+    el.style.overflow = "hidden";
+
+    const titleEl = el.createEl("h2", { text: "Diff" });
+    titleEl.style.marginBottom = "2px";
+    titleEl.style.flexShrink = "0";
+    titleEl.style.cursor = "move";
+    titleEl.style.userSelect = "none";
+
+    const oldDate = new Date(this.snapOld.timestamp);
+    const newDate = new Date(this.snapNew.timestamp);
+
+    const infoRow = el.createDiv();
+    infoRow.style.display = "flex";
+    infoRow.style.alignItems = "center";
+    infoRow.style.gap = "12px";
+    infoRow.style.marginBottom = "8px";
+    infoRow.style.flexShrink = "0";
+    infoRow.style.fontSize = "0.85em";
+
+    const oldTag = infoRow.createEl("span");
+    oldTag.style.padding = "2px 8px";
+    oldTag.style.borderRadius = "4px";
+    oldTag.style.backgroundColor = "rgba(248, 81, 73, 0.15)";
+    oldTag.style.border = "1px solid rgba(248, 81, 73, 0.4)";
+    oldTag.style.color = "var(--text-muted)";
+    oldTag.textContent = `${this.snapOld.reason} — ${oldDate.toLocaleDateString()} ${oldDate.toLocaleTimeString()}`;
+
+    const arrow = infoRow.createEl("span", { text: "→" });
+    arrow.style.fontSize = "1.2em";
+    arrow.style.color = "var(--text-muted)";
+
+    const newTag = infoRow.createEl("span");
+    newTag.style.padding = "2px 8px";
+    newTag.style.borderRadius = "4px";
+    newTag.style.backgroundColor = "rgba(46, 160, 67, 0.15)";
+    newTag.style.border = "1px solid rgba(46, 160, 67, 0.4)";
+    newTag.style.color = "var(--text-muted)";
+    newTag.textContent = `${this.snapNew.reason} — ${newDate.toLocaleDateString()} ${newDate.toLocaleTimeString()}`;
+
+    const diff = computeDiff(this.contentOld, this.contentNew);
+    const added = diff.filter(l => l.type === "add").length;
+    const removed = diff.filter(l => l.type === "remove").length;
+
+    const stats = el.createDiv();
+    stats.style.fontSize = "0.8em";
+    stats.style.color = "var(--text-muted)";
+    stats.style.marginBottom = "8px";
+    stats.style.flexShrink = "0";
+    if (added === 0 && removed === 0) {
+      stats.textContent = "No differences";
+    } else {
+      const sAdd = stats.createEl("span", { text: `+${added} added` });
+      sAdd.style.color = "#2ea043";
+      stats.createEl("span", { text: "  " });
+      const sRem = stats.createEl("span", { text: `-${removed} removed` });
+      sRem.style.color = "#f85149";
+    }
+
+    const diffContainer = el.createDiv();
+    diffContainer.style.flex = "1";
+    diffContainer.style.overflowY = "auto";
+    diffContainer.style.border = "1px solid var(--background-modifier-border)";
+    diffContainer.style.borderRadius = "6px";
+    diffContainer.style.backgroundColor = "var(--background-primary)";
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .sh-diff-row {
+        display: flex;
+        align-items: stretch;
+        min-height: 1.8em;
+        font-size: 0.85em;
+        line-height: 1.6;
+        border-bottom: 1px solid transparent;
+      }
+      .sh-diff-row-num {
+        width: 3.5em;
+        min-width: 3.5em;
+        max-width: 3.5em;
+        text-align: right;
+        padding: 2px 6px 2px 0;
+        color: var(--text-faint);
+        user-select: none;
+        font-family: var(--font-monospace);
+        font-size: 0.9em;
+        flex-shrink: 0;
+        border-right: 1px solid var(--background-modifier-border);
+      }
+      .sh-diff-row-prefix {
+        width: 1.8em;
+        min-width: 1.8em;
+        max-width: 1.8em;
+        text-align: center;
+        font-weight: 700;
+        font-family: var(--font-monospace);
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .sh-diff-row-text {
+        flex: 1;
+        padding: 2px 8px;
+        overflow: hidden;
+        min-width: 0;
+      }
+      .sh-diff-row-text > *:first-child { margin-top: 0; }
+      .sh-diff-row-text > *:last-child { margin-bottom: 0; }
+      .sh-diff-row-add {
+        background: rgba(46, 160, 67, 0.10);
+      }
+      .sh-diff-row-add .sh-diff-row-prefix { color: #2ea043; }
+      .sh-diff-row-remove {
+        background: rgba(248, 81, 73, 0.10);
+      }
+      .sh-diff-row-remove .sh-diff-row-prefix { color: #f85149; }
+      .sh-diff-row-equal {
+        background: transparent;
+      }
+      .sh-diff-row-equal .sh-diff-row-text { color: var(--text-muted); }
+      .sh-diff-collapse {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        background: var(--background-secondary);
+        border-top: 1px solid var(--background-modifier-border);
+        border-bottom: 1px solid var(--background-modifier-border);
+        color: var(--text-faint);
+        font-size: 0.8em;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s, color 0.15s;
+      }
+      .sh-diff-collapse:hover {
+        background: var(--background-modifier-hover);
+        color: var(--text-muted);
+      }
+      .sh-diff-hidden { display: none; }
+    `;
+    diffContainer.appendChild(style);
+
+    const curFile = this.plugin.getActiveMarkdownFile();
+    const sourcePath = curFile?.path ?? "";
+    const app = this.plugin.app;
+    const COLLAPSE = 4;
+
+    const renderRows = async () => {
+      let eqRun: DiffLine[] = [];
+
+      const flushEq = async () => {
+        if (eqRun.length === 0) return;
+        if (eqRun.length > COLLAPSE * 2) {
+          for (const line of eqRun.slice(0, COLLAPSE)) {
+            await appendDiffRow(diffContainer, app, line, sourcePath);
+          }
+          const hidden = eqRun.slice(COLLAPSE, eqRun.length - COLLAPSE);
+          const bar = diffContainer.createDiv();
+          bar.className = "sh-diff-collapse";
+          bar.textContent = `\u25BE  ${hidden.length} unchanged lines (click to show)  \u25BE`;
+          const hiddenEl = diffContainer.createDiv();
+          hiddenEl.className = "sh-diff-hidden";
+          for (const line of hidden) {
+            await appendDiffRow(hiddenEl, app, line, sourcePath);
+          }
+          let expanded = false;
+          bar.onclick = () => {
+            expanded = !expanded;
+            if (expanded) {
+              hiddenEl.classList.remove("sh-diff-hidden");
+              bar.textContent = `\u25B4  ${hidden.length} unchanged lines (click to hide)  \u25B4`;
+            } else {
+              hiddenEl.classList.add("sh-diff-hidden");
+              bar.textContent = `\u25BE  ${hidden.length} unchanged lines (click to show)  \u25BE`;
+            }
+          };
+          for (const line of eqRun.slice(eqRun.length - COLLAPSE)) {
+            await appendDiffRow(diffContainer, app, line, sourcePath);
+          }
+        } else {
+          for (const line of eqRun) {
+            await appendDiffRow(diffContainer, app, line, sourcePath);
+          }
+        }
+        eqRun = [];
+      };
+
+      for (const line of diff) {
+        if (line.type === "equal") {
+          eqRun.push(line);
+        } else {
+          await flushEq();
+          await appendDiffRow(diffContainer, app, line, sourcePath);
+        }
+      }
+      await flushEq();
+    };
+
+    renderRows().catch(() => {});
+
+    const btnRow = el.createDiv();
+    btnRow.style.marginTop = "12px";
+    btnRow.style.display = "flex";
+    btnRow.style.gap = "8px";
+    btnRow.style.flexShrink = "0";
+
+    const closeBtn = btnRow.createEl("button", { text: "Close" });
+    closeBtn.onclick = () => this.close();
+
+    if (modalContainer) {
+      makeDraggable(modalContainer, titleEl);
+      makeResizable(modalContainer);
+    }
+  }
+}
+
+async function appendDiffRow(
+  parent: HTMLElement,
+  app: any,
+  line: DiffLine,
+  sourcePath: string
+) {
+  const row = parent.createDiv();
+  row.className = `sh-diff-row sh-diff-row-${line.type}`;
+
+  const numCol = row.createDiv();
+  numCol.className = "sh-diff-row-num";
+  numCol.textContent = line.oldNo != null ? String(line.oldNo) : "";
+
+  const prefixCol = row.createDiv();
+  prefixCol.className = "sh-diff-row-prefix";
+  if (line.type === "add") prefixCol.textContent = "+";
+  else if (line.type === "remove") prefixCol.textContent = "\u2212";
+  else prefixCol.textContent = " ";
+
+  const textCol = row.createDiv();
+  textCol.className = "sh-diff-row-text";
+
+  if (line.text.length > 0) {
+    try {
+      await MarkdownRenderer.render(app, line.text, textCol, sourcePath, {} as any);
+    } catch {
+      textCol.createEl("span", { text: line.text });
+    }
   }
 }
 
