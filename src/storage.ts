@@ -130,12 +130,50 @@ export async function deleteSnapshotFile(
   if (await adapter.exists(filePath)) {
     try {
       await adapter.remove(filePath);
+      await removeEmptySnapshotDirs(plugin, filePath);
       return true;
     } catch {
       return false;
     }
   }
   return false;
+}
+
+async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: string) {
+  const adapter: any = plugin.app.vault.adapter;
+  const root = getSnapshotRoot(plugin);
+
+  // Walk upward from the deleted file's folder, removing empty dirs,
+  // but never delete the configured snapshot root itself.
+  const parts = filePath.replace(/\\/g, "/").split("/");
+  parts.pop();
+  let dir = parts.join("/");
+
+  while (dir && dir !== root && dir.startsWith(root + "/")) {
+    if (!(await adapter.exists(dir))) break;
+
+    let listResult;
+    try {
+      listResult = await adapter.list(dir);
+    } catch {
+      break;
+    }
+
+    const remainingFiles = (listResult.files || []).filter((p: string) => {
+      const name = p.replace(/\\/g, "/").split("/").pop();
+      return name && !name.startsWith(".");
+    });
+
+    if (remainingFiles.length > 0) break;
+
+    try {
+      await adapter.rmdir(dir);
+    } catch {
+      break;
+    }
+
+    dir = dir.split("/").slice(0, -1).join("/");
+  }
 }
 
 export async function updateSnapshotLabel(

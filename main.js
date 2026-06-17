@@ -103,12 +103,40 @@ async function deleteSnapshotFile(plugin, filePath) {
   if (await adapter.exists(filePath)) {
     try {
       await adapter.remove(filePath);
+      await removeEmptySnapshotDirs(plugin, filePath);
       return true;
     } catch {
       return false;
     }
   }
   return false;
+}
+async function removeEmptySnapshotDirs(plugin, filePath) {
+  const adapter = plugin.app.vault.adapter;
+  const root = getSnapshotRoot(plugin);
+  const parts = filePath.replace(/\\/g, "/").split("/");
+  parts.pop();
+  let dir = parts.join("/");
+  while (dir && dir !== root && dir.startsWith(root + "/")) {
+    if (!await adapter.exists(dir)) break;
+    let listResult;
+    try {
+      listResult = await adapter.list(dir);
+    } catch {
+      break;
+    }
+    const remainingFiles = (listResult.files || []).filter((p) => {
+      const name = p.replace(/\\/g, "/").split("/").pop();
+      return name && !name.startsWith(".");
+    });
+    if (remainingFiles.length > 0) break;
+    try {
+      await adapter.rmdir(dir);
+    } catch {
+      break;
+    }
+    dir = dir.split("/").slice(0, -1).join("/");
+  }
 }
 async function updateSnapshotLabel(plugin, filePath, newLabel) {
   const adapter = plugin.app.vault.adapter;
