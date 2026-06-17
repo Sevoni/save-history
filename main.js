@@ -67,13 +67,14 @@ async function listSnapshotsForFile(plugin, vaultRelativePath) {
   const jsonFiles = (listResult.files || []).map((p) => p.replace(/\\/g, "/")).filter((p) => p.endsWith(".json")).sort();
   const snapshots = [];
   for (const p of jsonFiles) {
+    const fullVaultPath = p.startsWith(dirPath) ? p : `${dirPath}/${p}`;
     try {
-      const json = await adapter.read(p);
+      const json = await adapter.read(fullVaultPath);
       if (json) {
         const record = JSON.parse(json);
         snapshots.push({
           ...record,
-          filePath: p
+          filePath: fullVaultPath
         });
       }
     } catch {
@@ -128,12 +129,14 @@ async function savePreRestoreBackup(plugin, vaultRelativePath, content) {
     try {
       const listResult = await adapter.list(dirPath);
       for (const p of listResult.files || []) {
-        if (p.endsWith(".json")) {
+        const fullPath = p.replace(/\\/g, "/");
+        const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+        if (fullVaultPath.endsWith(".json")) {
           try {
-            const json = await adapter.read(p);
+            const json = await adapter.read(fullVaultPath);
             const record = JSON.parse(json);
             if (record.reason === "pre-restore") {
-              await adapter.remove(p);
+              await adapter.remove(fullVaultPath);
             }
           } catch {
           }
@@ -274,6 +277,8 @@ var init_locale = __esm({
       cmdRestore: "Restore version\u2026",
       cmdRestoreDesc: "Restore a saved version",
       cmdOpenSidebar: "Open history sidebar",
+      cmdRestoreLastBackup: "Restore last unsaved version",
+      cmdRestoreLastBackupDesc: "Restore the last pre-restore backup for the current file",
       noFileOpenSave: "Open a markdown (.md) file to save a version.",
       noFileOpenRestore: "Open a markdown (.md) file to restore a version.",
       viewTitle: "File History",
@@ -351,6 +356,8 @@ var init_locale = __esm({
       cmdRestore: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E\u2026",
       cmdRestoreDesc: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E",
       cmdOpenSidebar: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0431\u043E\u043A\u043E\u0432\u0443\u044E \u043F\u0430\u043D\u0435\u043B\u044C \u0438\u0441\u0442\u043E\u0440\u0438\u0438",
+      cmdRestoreLastBackup: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u044E\u044E \u043D\u0435\u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E",
+      cmdRestoreLastBackupDesc: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0439 \u0431\u044D\u043A\u0430\u043F \u043F\u0435\u0440\u0435\u0434 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435\u043C \u0434\u043B\u044F \u0442\u0435\u043A\u0443\u0449\u0435\u0433\u043E \u0444\u0430\u0439\u043B\u0430",
       noFileOpenSave: "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 markdown (.md) \u0444\u0430\u0439\u043B, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E.",
       noFileOpenRestore: "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 markdown (.md) \u0444\u0430\u0439\u043B, \u0447\u0442\u043E\u0431\u044B \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E.",
       viewTitle: "\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0444\u0430\u0439\u043B\u0430",
@@ -506,6 +513,38 @@ function registerCommands(plugin, versioning) {
       }
       if (leaf) {
         plugin.app.workspace.revealLeaf(leaf);
+      }
+    }
+  });
+  plugin.addCommand?.({
+    id: "save-history:restore-last-backup",
+    name: translate("cmdRestoreLastBackup"),
+    callback: async () => {
+      const file = plugin.getActiveMarkdownFile();
+      if (!file) {
+        plugin.toast(translate("noFileOpenRestore"));
+        return;
+      }
+      const allSnapshots = await listSnapshotsForFile(plugin, file.path);
+      const preRestoreBackup = allSnapshots.find((s) => s.reason === "pre-restore");
+      if (!preRestoreBackup) {
+        plugin.toast(translate("noSavedVersions"));
+        return;
+      }
+      const restored = await readSnapshotContent(plugin, preRestoreBackup.filePath);
+      if (!restored) {
+        plugin.toast(translate("failedLoadBackup"));
+        return;
+      }
+      const currentContent = await plugin.app.vault.read(file);
+      await savePreRestoreBackup(plugin, file.path, currentContent);
+      await versioning.restoreFromSnapshot(file, restored);
+      plugin.toast(translate("backupRestored"));
+      const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+      for (const leaf of leaves) {
+        if (leaf.view instanceof SaveHistoryView) {
+          leaf.view.refresh();
+        }
       }
     }
   });

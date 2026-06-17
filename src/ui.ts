@@ -105,6 +105,40 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
       }
     },
   } as any);
+
+  plugin.addCommand?.({
+    id: "save-history:restore-last-backup",
+    name: translate("cmdRestoreLastBackup"),
+    callback: async () => {
+      const file = plugin.getActiveMarkdownFile();
+      if (!file) {
+        plugin.toast(translate("noFileOpenRestore"));
+        return;
+      }
+      const allSnapshots = await listSnapshotsForFile(plugin, file.path);
+      const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
+      if (!preRestoreBackup) {
+        plugin.toast(translate("noSavedVersions"));
+        return;
+      }
+      const restored = await readSnapshotContent(plugin, preRestoreBackup.filePath);
+      if (!restored) {
+        plugin.toast(translate("failedLoadBackup"));
+        return;
+      }
+      const currentContent = await plugin.app.vault.read(file);
+      await savePreRestoreBackup(plugin, file.path, currentContent);
+      await versioning.restoreFromSnapshot(file, restored);
+      plugin.toast(translate("backupRestored"));
+
+      const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+      for (const leaf of leaves) {
+        if (leaf.view instanceof SaveHistoryView) {
+          leaf.view.refresh();
+        }
+      }
+    },
+  } as any);
 }
 
 export class SaveHistoryView extends ItemView {

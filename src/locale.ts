@@ -7,6 +7,8 @@ type TranslationKeys = {
   cmdRestore: string;
   cmdRestoreDesc: string;
   cmdOpenSidebar: string;
+  cmdRestoreLastBackup: string;
+  cmdRestoreLastBackupDesc: string;
   noFileOpenSave: string;
   noFileOpenRestore: string;
 
@@ -105,6 +107,8 @@ const en: TranslationKeys = {
   cmdRestore: "Restore version\u2026",
   cmdRestoreDesc: "Restore a saved version",
   cmdOpenSidebar: "Open history sidebar",
+  cmdRestoreLastBackup: "Restore last unsaved version",
+  cmdRestoreLastBackupDesc: "Restore the last pre-restore backup for the current file",
   noFileOpenSave: "Open a markdown (.md) file to save a version.",
   noFileOpenRestore: "Open a markdown (.md) file to restore a version.",
 
@@ -193,6 +197,8 @@ const ru: TranslationKeys = {
   cmdRestore: "Восстановить версию\u2026",
   cmdRestoreDesc: "Восстановить сохранённую версию",
   cmdOpenSidebar: "Открыть боковую панель истории",
+  cmdRestoreLastBackup: "Восстановить последнюю несохранённую версию",
+  cmdRestoreLastBackupDesc: "Восстановить последний бэкап перед восстановлением для текущего файла",
   noFileOpenSave: "Откройте markdown (.md) файл, чтобы сохранить версию.",
   noFileOpenRestore: "Откройте markdown (.md) файл, чтобы восстановить версию.",
 

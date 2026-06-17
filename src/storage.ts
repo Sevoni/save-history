@@ -82,13 +82,14 @@ export async function listSnapshotsForFile(
 
   const snapshots: (SnapshotRecord & { filePath: string })[] = [];
   for (const p of jsonFiles) {
+    const fullVaultPath = p.startsWith(dirPath) ? p : `${dirPath}/${p}`;
     try {
-      const json = await adapter.read(p);
+      const json = await adapter.read(fullVaultPath);
       if (json) {
         const record = JSON.parse(json) as SnapshotRecord;
         snapshots.push({
           ...record,
-          filePath: p
+          filePath: fullVaultPath
         });
       }
     } catch {
@@ -170,12 +171,14 @@ export async function savePreRestoreBackup(
     try {
       const listResult = await adapter.list(dirPath);
       for (const p of listResult.files || []) {
-        if (p.endsWith(".json")) {
+        const fullPath = p.replace(/\\/g, "/");
+        const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+        if (fullVaultPath.endsWith(".json")) {
           try {
-            const json = await adapter.read(p);
+            const json = await adapter.read(fullVaultPath);
             const record = JSON.parse(json) as SnapshotRecord;
             if (record.reason === "pre-restore") {
-              await adapter.remove(p);
+              await adapter.remove(fullVaultPath);
             }
           } catch {
             // ignore
