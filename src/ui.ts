@@ -4,7 +4,6 @@ import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSn
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 import { translate } from "./locale";
-import { VIEW_TYPE_SAVE_HISTORY } from "./views";
 
 async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: string, sourcePath: string): Promise<string> {
   const adapter = plugin.app.vault.adapter;
@@ -47,6 +46,8 @@ async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: stri
 
   return result;
 }
+
+export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
 
 export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
   plugin.addCommand?.({

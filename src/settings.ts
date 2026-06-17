@@ -1,7 +1,6 @@
 import { PluginSettingTab, type Plugin } from "obsidian";
-import { SaveHistoryView } from "./ui";
+import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { translate, setLanguage, type Language } from "./locale";
-import { VIEW_TYPE_SAVE_HISTORY } from "./views";
 
 export class SaveHistorySettingTab extends PluginSettingTab {
 	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void> };

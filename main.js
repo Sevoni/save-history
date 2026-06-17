@@ -425,15 +425,6 @@ var init_locale = __esm({
   }
 });
 
-// src/views.ts
-var VIEW_TYPE_SAVE_HISTORY;
-var init_views = __esm({
-  "src/views.ts"() {
-    "use strict";
-    VIEW_TYPE_SAVE_HISTORY = "save-history-view";
-  }
-});
-
 // src/ui.ts
 async function resolveImagesInMarkdown(plugin, markdown, sourcePath) {
   const adapter = plugin.app.vault.adapter;
@@ -632,7 +623,7 @@ function makeResizable(el) {
     document.addEventListener("mouseup", onMouseUp);
   });
 }
-var import_obsidian, SaveHistoryView, RestoreVersionModal, DiffModal;
+var import_obsidian, VIEW_TYPE_SAVE_HISTORY, SaveHistoryView, RestoreVersionModal, DiffModal;
 var init_ui = __esm({
   "src/ui.ts"() {
     "use strict";
@@ -640,7 +631,7 @@ var init_ui = __esm({
     init_storage();
     init_diff();
     init_locale();
-    init_views();
+    VIEW_TYPE_SAVE_HISTORY = "save-history-view";
     SaveHistoryView = class extends import_obsidian.ItemView {
       constructor(leaf, plugin, versioning) {
         super(leaf);
@@ -1545,7 +1536,6 @@ var init_settings = __esm({
     import_obsidian2 = require("obsidian");
     init_ui();
     init_locale();
-    init_views();
     SaveHistorySettingTab = class extends import_obsidian2.PluginSettingTab {
       constructor(app, plugin) {
         super(app, plugin);
@@ -1634,7 +1624,6 @@ var init_main = __esm({
     init_ui();
     init_settings();
     init_locale();
-    init_views();
     DEFAULT_SETTINGS = {
       groupBy: "day",
       collapsedGroups: {},
