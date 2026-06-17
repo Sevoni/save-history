@@ -4,7 +4,7 @@ import { SaveHistoryPlugin } from "./main";
 export interface SaveHistorySettings {
 	diffStyle: "unified" | "side-by-side";
 	previewStyle: "custom-view" | "temp-file";
-	groupBy: "none" | "day" | "week";
+	groupBy: "none" | "day" | "week" | "month" | "year";
 }
 
 export const DEFAULT_SETTINGS: SaveHistorySettings = {
@@ -96,9 +96,13 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		dayOpt.value = "day";
 		const weekOpt = groupSelect.createEl("option", { text: "Week" });
 		weekOpt.value = "week";
+		const monthOpt = groupSelect.createEl("option", { text: "Month" });
+		monthOpt.value = "month";
+		const yearOpt = groupSelect.createEl("option", { text: "Year" });
+		yearOpt.value = "year";
 		groupSelect.value = this.plugin.settings.groupBy;
 		groupSelect.onchange = async () => {
-			this.plugin.settings.groupBy = groupSelect.value as "none" | "day" | "week";
+			this.plugin.settings.groupBy = groupSelect.value as "none" | "day" | "week" | "month" | "year";
 			await this.plugin.saveSettings();
 		};
 	}

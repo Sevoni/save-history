@@ -2,7 +2,7 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 
-export type GroupByMode = "none" | "day" | "week";
+export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
 export interface SaveHistorySettings {
   groupBy: GroupByMode;

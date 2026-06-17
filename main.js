@@ -501,7 +501,9 @@ var init_ui = __esm({
         const opts = [
           { value: "none", label: "No grouping" },
           { value: "day", label: "By day" },
-          { value: "week", label: "By week" }
+          { value: "week", label: "By week" },
+          { value: "month", label: "By month" },
+          { value: "year", label: "By year" }
         ];
         for (const o of opts) {
           const opt = groupSelect.createEl("option", { text: o.label });
@@ -723,7 +725,7 @@ var init_ui = __esm({
           if (groupBy === "day") {
             key = date.toISOString().slice(0, 10);
             label = date.toLocaleDateString(void 0, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-          } else {
+          } else if (groupBy === "week") {
             const weekStart = this.getWeekStart(date);
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
@@ -731,6 +733,12 @@ var init_ui = __esm({
             const startLabel = weekStart.toLocaleDateString(void 0, { month: "short", day: "numeric" });
             const endLabel = weekEnd.toLocaleDateString(void 0, { month: "short", day: "numeric", year: "numeric" });
             label = `${startLabel} \u2013 ${endLabel}`;
+          } else if (groupBy === "month") {
+            key = date.toISOString().slice(0, 7);
+            label = date.toLocaleDateString(void 0, { year: "numeric", month: "long" });
+          } else {
+            key = date.toISOString().slice(0, 4);
+            label = date.toLocaleDateString(void 0, { year: "numeric" });
           }
           if (!groups.has(key)) {
             groups.set(key, { key, label, snapshots: [] });

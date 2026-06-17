@@ -164,6 +164,8 @@ export class SaveHistoryView extends ItemView {
       { value: "none", label: "No grouping" },
       { value: "day", label: "By day" },
       { value: "week", label: "By week" },
+      { value: "month", label: "By month" },
+      { value: "year", label: "By year" },
     ];
     for (const o of opts) {
       const opt = groupSelect.createEl("option", { text: o.label });
@@ -424,7 +426,7 @@ export class SaveHistoryView extends ItemView {
       if (groupBy === "day") {
         key = date.toISOString().slice(0, 10);
         label = date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-      } else {
+      } else if (groupBy === "week") {
         const weekStart = this.getWeekStart(date);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
@@ -432,6 +434,12 @@ export class SaveHistoryView extends ItemView {
         const startLabel = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
         const endLabel = weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
         label = `${startLabel} – ${endLabel}`;
+      } else if (groupBy === "month") {
+        key = date.toISOString().slice(0, 7);
+        label = date.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+      } else {
+        key = date.toISOString().slice(0, 4);
+        label = date.toLocaleDateString(undefined, { year: "numeric" });
       }
 
       if (!groups.has(key)) {

@@ -1,7 +1,9 @@
 {
-  "groupBy": "none",
+  "groupBy": "year",
   "collapsedGroups": {
-    "2026-06-14": true
+    "2026": true,
+    "2026-06-14": true,
+    "2026-06": true
   },
   "diffStyle": "side-by-side",
   "previewStyle": "custom-view"
