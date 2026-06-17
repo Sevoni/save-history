@@ -1,17 +1,21 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
+import { SaveHistorySettingTab } from "./settings";
+import { setLanguage, type Language } from "./i18n";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
 export interface SaveHistorySettings {
   groupBy: GroupByMode;
   collapsedGroups: Record<string, boolean>;
+  language: Language;
 }
 
 const DEFAULT_SETTINGS: SaveHistorySettings = {
   groupBy: "day",
   collapsedGroups: {},
+  language: "en",
 };
 
 export class SaveHistoryPlugin extends Plugin {
@@ -29,6 +33,8 @@ export class SaveHistoryPlugin extends Plugin {
     );
 
     registerCommands(this, versioning);
+
+    this.addSettingTab(new SaveHistorySettingTab(this.app, this));
   }
 
   onunload() {
@@ -41,6 +47,7 @@ export class SaveHistoryPlugin extends Plugin {
     if (data) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     }
+    setLanguage(this.settings.language);
   }
 
   async saveSettings() {

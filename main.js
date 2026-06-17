@@ -251,6 +251,196 @@ var init_diff = __esm({
   }
 });
 
+// src/i18n.ts
+function setLanguage(lang) {
+  currentLang = lang;
+}
+function t(key, params) {
+  let str = translations[currentLang][key] || translations.en[key] || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+    }
+  }
+  return str;
+}
+var en, ru, translations, currentLang;
+var init_i18n = __esm({
+  "src/i18n.ts"() {
+    "use strict";
+    en = {
+      cmdSaveNow: "Save version now",
+      cmdSaveNowDesc: "Save a version of the current file",
+      cmdRestore: "Restore version\u2026",
+      cmdRestoreDesc: "Restore a saved version",
+      cmdOpenSidebar: "Open history sidebar",
+      noFileOpenSave: "Open a markdown (.md) file to save a version.",
+      noFileOpenRestore: "Open a markdown (.md) file to restore a version.",
+      viewTitle: "File History",
+      noActiveFile: "No active markdown file.",
+      fileLabel: "File: {name}",
+      saveVersionNow: "Save version now",
+      versionSaved: "Version saved.",
+      noSavedVersions: "No saved versions yet.",
+      groupNone: "No grouping",
+      groupDay: "By day",
+      groupWeek: "By week",
+      groupMonth: "By month",
+      groupYear: "By year",
+      diffTwoVersions: "Diff Two Versions",
+      cancelDiff: "Cancel Diff",
+      showDiff: "Show Diff",
+      clear: "Clear",
+      selectForDiff: "Select for Diff",
+      deselect: "Deselect",
+      replaceSelection: "Replace Selection",
+      diffNewer: "1 (newer)",
+      diffOlder: "2 (older)",
+      diffWithCurrent: "Diff with Current",
+      currentFile: "Current file",
+      restore: "Restore",
+      preview: "Preview",
+      delete: "Delete",
+      deleteConfirm: "Delete?",
+      yes: "Yes",
+      no: "No",
+      versionDeleted: "Version deleted.",
+      failedDeleteVersion: "Failed to delete version.",
+      failedLoadSnapshot: "Failed to load snapshot.",
+      failedLoadSnapshotContent: "Failed to load snapshot content.",
+      versionRestored: "Version restored. Current state backed up below.",
+      renameVersion: "Rename version",
+      labelUpdated: "Label updated.",
+      failedUpdateLabel: "Failed to update label.",
+      save: "Save",
+      cancel: "Cancel",
+      restoreThisVersion: "Restore This Version",
+      close: "Close",
+      lastUnsavedVersion: "Last Unsaved Version",
+      autoSavedOnRestore: "Auto-saved on restore: {date} {time}",
+      restoreBackup: "Restore Backup",
+      backupRestored: "Backup restored.",
+      failedLoadBackup: "Failed to load backup.",
+      backupDeleted: "Backup deleted.",
+      failedDeleteBackup: "Failed to delete backup.",
+      deleteBackup: "Delete backup?",
+      restoreVersion: "Restore version",
+      loadingVersions: "Loading versions\u2026",
+      noSavedVersionsYet: "No saved versions yet.",
+      unnamed: "(unnamed)",
+      versionRestoredDot: "Version restored.",
+      failedLoadSnapshotDot: "Failed to load selected snapshot.",
+      diff: "Diff",
+      noDifferences: "No differences",
+      added: "+{n} added",
+      removed: "-{n} removed",
+      unchangedLinesShow: "\u25BE  {n} unchanged lines (click to show)  \u25BE",
+      unchangedLinesHide: "\u25B4  {n} unchanged lines (click to hide)  \u25B4",
+      settingsTitle: "Save History Settings",
+      diffDisplayStyle: "Diff display style",
+      diffDisplayDesc: "Choose how version differences are displayed.",
+      unifiedInline: "Unified (inline)",
+      sideBySide: "Side-by-side",
+      previewOpenStyle: "Preview open style",
+      previewOpenDesc: "How to open a version in a new pane. Custom view is cleaner; temp file uses Obsidian's native editor.",
+      customView: "Custom View",
+      tempFile: "Temp File",
+      groupVersionsBy: "Group versions by",
+      groupVersionsDesc: "Group saved versions in the sidebar by time period.",
+      language: "Language",
+      languageDesc: "Interface language for the plugin.",
+      versionPreview: "Version Preview",
+      noPreviewLoaded: "No preview loaded."
+    };
+    ru = {
+      cmdSaveNow: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E",
+      cmdSaveNowDesc: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E \u0442\u0435\u043A\u0443\u0449\u0435\u0433\u043E \u0444\u0430\u0439\u043B\u0430",
+      cmdRestore: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E\u2026",
+      cmdRestoreDesc: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E",
+      cmdOpenSidebar: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0431\u043E\u043A\u043E\u0432\u0443\u044E \u043F\u0430\u043D\u0435\u043B\u044C \u0438\u0441\u0442\u043E\u0440\u0438\u0438",
+      noFileOpenSave: "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 markdown (.md) \u0444\u0430\u0439\u043B, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E.",
+      noFileOpenRestore: "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 markdown (.md) \u0444\u0430\u0439\u043B, \u0447\u0442\u043E\u0431\u044B \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E.",
+      viewTitle: "\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0444\u0430\u0439\u043B\u0430",
+      noActiveFile: "\u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E markdown \u0444\u0430\u0439\u043B\u0430.",
+      fileLabel: "\u0424\u0430\u0439\u043B: {name}",
+      saveVersionNow: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E",
+      versionSaved: "\u0412\u0435\u0440\u0441\u0438\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430.",
+      noSavedVersions: "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0445 \u0432\u0435\u0440\u0441\u0438\u0439.",
+      groupNone: "\u0411\u0435\u0437 \u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0438",
+      groupDay: "\u041F\u043E \u0434\u043D\u044F\u043C",
+      groupWeek: "\u041F\u043E \u043D\u0435\u0434\u0435\u043B\u044F\u043C",
+      groupMonth: "\u041F\u043E \u043C\u0435\u0441\u044F\u0446\u0430\u043C",
+      groupYear: "\u041F\u043E \u0433\u043E\u0434\u0430\u043C",
+      diffTwoVersions: "\u0421\u0440\u0430\u0432\u043D\u0438\u0442\u044C \u0434\u0432\u0435 \u0432\u0435\u0440\u0441\u0438\u0438",
+      cancelDiff: "\u041E\u0442\u043C\u0435\u043D\u0430",
+      showDiff: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0440\u0430\u0437\u043D\u0438\u0446\u0443",
+      clear: "\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C",
+      selectForDiff: "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u043B\u044F \u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u044F",
+      deselect: "\u0421\u043D\u044F\u0442\u044C \u0432\u044B\u0431\u043E\u0440",
+      replaceSelection: "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0432\u044B\u0431\u043E\u0440",
+      diffNewer: "1 (\u043D\u043E\u0432\u0435\u0435)",
+      diffOlder: "2 (\u0441\u0442\u0430\u0440\u0430\u044F)",
+      diffWithCurrent: "\u0421\u0440\u0430\u0432\u043D\u0438\u0442\u044C \u0441 \u0442\u0435\u043A\u0443\u0449\u0438\u043C",
+      currentFile: "\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u0444\u0430\u0439\u043B",
+      restore: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C",
+      preview: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440",
+      delete: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
+      deleteConfirm: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C?",
+      yes: "\u0414\u0430",
+      no: "\u041D\u0435\u0442",
+      versionDeleted: "\u0412\u0435\u0440\u0441\u0438\u044F \u0443\u0434\u0430\u043B\u0435\u043D\u0430.",
+      failedDeleteVersion: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E.",
+      failedLoadSnapshot: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u043D\u0438\u043C\u043E\u043A.",
+      failedLoadSnapshotContent: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435 \u0441\u043D\u0438\u043C\u043A\u0430.",
+      versionRestored: "\u0412\u0435\u0440\u0441\u0438\u044F \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430. \u0422\u0435\u043A\u0443\u0449\u0435\u0435 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E \u043D\u0438\u0436\u0435.",
+      renameVersion: "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E",
+      labelUpdated: "\u041C\u0435\u0442\u043A\u0430 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0430.",
+      failedUpdateLabel: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u043C\u0435\u0442\u043A\u0443.",
+      save: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C",
+      cancel: "\u041E\u0442\u043C\u0435\u043D\u0430",
+      restoreThisVersion: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u044D\u0442\u0443 \u0432\u0435\u0440\u0441\u0438\u044E",
+      close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
+      lastUnsavedVersion: "\u041F\u043E\u0441\u043B\u0435\u0434\u043D\u044F\u044F \u043D\u0435\u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u0430\u044F \u0432\u0435\u0440\u0441\u0438\u044F",
+      autoSavedOnRestore: "\u0410\u0432\u0442\u043E\u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u043F\u0440\u0438 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0438: {date} {time}",
+      restoreBackup: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0440\u0435\u0437\u0435\u0440\u0432",
+      backupRestored: "\u0420\u0435\u0437\u0435\u0440\u0432 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D.",
+      failedLoadBackup: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0440\u0435\u0437\u0435\u0440\u0432.",
+      backupDeleted: "\u0420\u0435\u0437\u0435\u0440\u0432 \u0443\u0434\u0430\u043B\u0435\u043D.",
+      failedDeleteBackup: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0440\u0435\u0437\u0435\u0440\u0432.",
+      deleteBackup: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0440\u0435\u0437\u0435\u0440\u0432?",
+      restoreVersion: "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u0432\u0435\u0440\u0441\u0438\u0438",
+      loadingVersions: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u0435\u0440\u0441\u0438\u0439\u2026",
+      noSavedVersionsYet: "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0445 \u0432\u0435\u0440\u0441\u0438\u0439.",
+      unnamed: "(\u0431\u0435\u0437 \u0438\u043C\u0435\u043D\u0438)",
+      versionRestoredDot: "\u0412\u0435\u0440\u0441\u0438\u044F \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0430.",
+      failedLoadSnapshotDot: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u043D\u0438\u043C\u043E\u043A.",
+      diff: "\u0421\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u0435",
+      noDifferences: "\u0420\u0430\u0437\u043B\u0438\u0447\u0438\u0439 \u043D\u0435\u0442",
+      added: "+{n} \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E",
+      removed: "-{n} \u0443\u0434\u0430\u043B\u0435\u043D\u043E",
+      unchangedLinesShow: "\u25BE  {n} \u043D\u0435\u0438\u0437\u043C\u0435\u043D\u0451\u043D\u043D\u044B\u0445 \u0441\u0442\u0440\u043E\u043A (\u043D\u0430\u0436\u043C\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u043F\u043E\u043A\u0430\u0437\u0430\u0442\u044C)  \u25BE",
+      unchangedLinesHide: "\u25B4  {n} \u043D\u0435\u0438\u0437\u043C\u0435\u043D\u0451\u043D\u043D\u044B\u0445 \u0441\u0442\u0440\u043E\u043A (\u043D\u0430\u0436\u043C\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u0441\u043A\u0440\u044B\u0442\u044C)  \u25B4",
+      settingsTitle: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 Save History",
+      diffDisplayStyle: "\u0421\u0442\u0438\u043B\u044C \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u0440\u0430\u0437\u043D\u0438\u0446",
+      diffDisplayDesc: "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435, \u043A\u0430\u043A \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0430\u0442\u044C\u0441\u044F \u0440\u0430\u0437\u043B\u0438\u0447\u0438\u044F \u043C\u0435\u0436\u0434\u0443 \u0432\u0435\u0440\u0441\u0438\u044F\u043C\u0438.",
+      unifiedInline: "\u0421\u043F\u043B\u043E\u0448\u043D\u044B\u0439 (\u0432 \u0441\u0442\u0440\u043E\u043A\u0443)",
+      sideBySide: "\u0411\u043E\u043A \u043E \u0431\u043E\u043A",
+      previewOpenStyle: "\u0421\u0442\u0438\u043B\u044C \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0430",
+      previewOpenDesc: "\u041A\u0430\u043A \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E \u0432 \u043D\u043E\u0432\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438. \u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0447\u0438\u0449\u0435; \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0439 \u0444\u0430\u0439\u043B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440 Obsidian.",
+      customView: "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440",
+      tempFile: "\u0412\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0439 \u0444\u0430\u0439\u043B",
+      groupVersionsBy: "\u0413\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0430 \u0432\u0435\u0440\u0441\u0438\u0439",
+      groupVersionsDesc: "\u0413\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u0438 \u0432 \u0431\u043E\u043A\u043E\u0432\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438 \u043F\u043E \u043F\u0435\u0440\u0438\u043E\u0434\u0430\u043C.",
+      language: "\u042F\u0437\u044B\u043A",
+      languageDesc: "\u042F\u0437\u044B\u043A \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043F\u043B\u0430\u0433\u0438\u043D\u0430.",
+      versionPreview: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0432\u0435\u0440\u0441\u0438\u0438",
+      noPreviewLoaded: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D."
+    };
+    translations = { en, ru };
+    currentLang = "en";
+  }
+});
+
 // src/ui.ts
 async function resolveImagesInMarkdown(plugin, markdown, sourcePath) {
   const adapter = plugin.app.vault.adapter;
@@ -284,15 +474,15 @@ async function resolveImagesInMarkdown(plugin, markdown, sourcePath) {
 function registerCommands(plugin, versioning) {
   plugin.addCommand?.({
     id: "save-history:save-now",
-    name: "Save version now",
+    name: t("cmdSaveNow"),
     callback: async () => {
       const file = plugin.getActiveMarkdownFile();
       if (!file) {
-        plugin.toast("Open a markdown (.md) file to save a version.");
+        plugin.toast(t("noFileOpenSave"));
         return;
       }
       await versioning.saveNowForFile(file, "manual");
-      plugin.toast("Version saved.");
+      plugin.toast(t("versionSaved"));
       const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
       for (const leaf of leaves) {
         if (leaf.view instanceof SaveHistoryView) {
@@ -303,11 +493,11 @@ function registerCommands(plugin, versioning) {
   });
   plugin.addCommand?.({
     id: "save-history:restore",
-    name: "Restore version\u2026",
+    name: t("cmdRestore"),
     callback: async () => {
       const file = plugin.getActiveMarkdownFile();
       if (!file) {
-        plugin.toast("Open a markdown (.md) file to restore a version.");
+        plugin.toast(t("noFileOpenRestore"));
         return;
       }
       new RestoreVersionModal(plugin, file, versioning).open();
@@ -315,7 +505,7 @@ function registerCommands(plugin, versioning) {
   });
   plugin.addCommand?.({
     id: "save-history:open-sidebar",
-    name: "Open history sidebar",
+    name: t("cmdOpenSidebar"),
     callback: async () => {
       let leaf = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY)[0];
       if (!leaf) {
@@ -456,6 +646,7 @@ var init_ui = __esm({
     import_obsidian = require("obsidian");
     init_storage();
     init_diff();
+    init_i18n();
     VIEW_TYPE_SAVE_HISTORY = "save-history-view";
     SaveHistoryView = class extends import_obsidian.ItemView {
       constructor(leaf, plugin, versioning) {
@@ -473,7 +664,7 @@ var init_ui = __esm({
         return VIEW_TYPE_SAVE_HISTORY;
       }
       getDisplayText() {
-        return "File History";
+        return t("viewTitle");
       }
       getIcon() {
         return "history";
@@ -492,18 +683,18 @@ var init_ui = __esm({
         headerRow.style.alignItems = "center";
         headerRow.style.justifyContent = "space-between";
         headerRow.style.margin = "0 0 8px 0";
-        const header = headerRow.createEl("h3", { text: "File History" });
+        const header = headerRow.createEl("h3", { text: t("viewTitle") });
         header.style.margin = "0";
         const groupSelect = headerRow.createEl("select");
         groupSelect.style.fontSize = "0.8em";
         groupSelect.style.padding = "2px 4px";
         groupSelect.style.marginLeft = "8px";
         const opts = [
-          { value: "none", label: "No grouping" },
-          { value: "day", label: "By day" },
-          { value: "week", label: "By week" },
-          { value: "month", label: "By month" },
-          { value: "year", label: "By year" }
+          { value: "none", label: t("groupNone") },
+          { value: "day", label: t("groupDay") },
+          { value: "week", label: t("groupWeek") },
+          { value: "month", label: t("groupMonth") },
+          { value: "year", label: t("groupYear") }
         ];
         for (const o of opts) {
           const opt = groupSelect.createEl("option", { text: o.label });
@@ -519,27 +710,27 @@ var init_ui = __esm({
         };
         const activeFile = this.plugin.getActiveMarkdownFile();
         if (!activeFile) {
-          wrapper.createDiv({ text: "No active markdown file.", cls: "nav-header" });
+          wrapper.createDiv({ text: t("noActiveFile"), cls: "nav-header" });
           return;
         }
         const fileLabel = wrapper.createDiv();
         fileLabel.style.fontSize = "0.85em";
         fileLabel.style.color = "var(--text-muted)";
         fileLabel.style.marginBottom = "8px";
-        fileLabel.textContent = `File: ${activeFile.name}`;
-        const saveBtn = wrapper.createEl("button", { text: "Save version now" });
+        fileLabel.textContent = t("fileLabel", { name: activeFile.name });
+        const saveBtn = wrapper.createEl("button", { text: t("saveVersionNow") });
         saveBtn.style.width = "100%";
         saveBtn.onclick = async () => {
           const curFile = this.plugin.getActiveMarkdownFile();
           if (!curFile) return;
           await this.versioning.saveNowForFile(curFile, "manual");
-          this.plugin.toast("Version saved.");
+          this.plugin.toast(t("versionSaved"));
           this.refresh();
         };
         const diffBtnRow = wrapper.createDiv();
         diffBtnRow.style.display = "flex";
         diffBtnRow.style.gap = "6px";
-        const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? "Cancel Diff" : "Diff Two Versions" });
+        const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? t("cancelDiff") : t("diffTwoVersions") });
         diffToggleBtn.style.flex = "1";
         diffToggleBtn.onclick = () => {
           this.diffMode = !this.diffMode;
@@ -547,14 +738,14 @@ var init_ui = __esm({
           this.refresh();
         };
         if (this.diffMode && this.diffSelection.length === 2) {
-          const diffGoBtn = diffBtnRow.createEl("button", { text: "Show Diff" });
+          const diffGoBtn = diffBtnRow.createEl("button", { text: t("showDiff") });
           diffGoBtn.style.flex = "1";
           diffGoBtn.style.fontWeight = "600";
           diffGoBtn.onclick = async () => {
             const recOld = await readSnapshotContent(this.plugin, this.diffSelection[1].filePath);
             const recNew = await readSnapshotContent(this.plugin, this.diffSelection[0].filePath);
             if (!recOld || !recNew) {
-              this.plugin.toast("Failed to load snapshot content.");
+              this.plugin.toast(t("failedLoadSnapshotContent"));
               return;
             }
             new DiffModal(this.plugin, this.diffSelection[1], this.diffSelection[0], recOld.content, recNew.content).open();
@@ -564,7 +755,7 @@ var init_ui = __esm({
           };
         }
         if (this.diffMode && this.diffSelection.length > 0) {
-          const diffClearBtn = diffBtnRow.createEl("button", { text: "Clear" });
+          const diffClearBtn = diffBtnRow.createEl("button", { text: t("clear") });
           diffClearBtn.onclick = () => {
             this.diffSelection = [];
             this.refresh();
@@ -578,7 +769,7 @@ var init_ui = __esm({
         const snapshots = allSnapshots.filter((s) => s.reason !== "pre-restore");
         const preRestoreBackup = allSnapshots.find((s) => s.reason === "pre-restore");
         if (snapshots.length === 0) {
-          listContainer.createDiv({ text: "No saved versions yet." });
+          listContainer.createDiv({ text: t("noSavedVersions") });
         } else {
           const groupBy = this.plugin.settings.groupBy;
           if (groupBy === "none") {
@@ -645,7 +836,7 @@ var init_ui = __esm({
           const divider = wrapper.createEl("hr");
           divider.style.margin = "16px 0 8px 0";
           divider.style.borderTop = "1px dashed var(--background-modifier-border)";
-          const backupHeader = wrapper.createEl("h4", { text: "Last Unsaved Version" });
+          const backupHeader = wrapper.createEl("h4", { text: t("lastUnsavedVersion") });
           backupHeader.style.margin = "0 0 8px 0";
           backupHeader.style.color = "var(--text-accent)";
           const backupItem = wrapper.createDiv();
@@ -659,28 +850,28 @@ var init_ui = __esm({
           const meta = backupItem.createDiv();
           meta.style.fontSize = "0.85em";
           const date = new Date(preRestoreBackup.timestamp);
-          meta.textContent = `Auto-saved on restore: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+          meta.textContent = t("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
           const actions = backupItem.createDiv();
           actions.style.display = "flex";
           actions.style.flexWrap = "wrap";
           actions.style.gap = "4px";
-          const restoreBtn = actions.createEl("button", { text: "Restore Backup" });
+          const restoreBtn = actions.createEl("button", { text: t("restoreBackup") });
           restoreBtn.style.flex = "1 1 100px";
           restoreBtn.onclick = async () => {
             const curFile = this.plugin.getActiveMarkdownFile();
             if (!curFile) return;
             const restored = await readSnapshotContent(this.plugin, preRestoreBackup.filePath);
             if (!restored) {
-              this.plugin.toast("Failed to load backup.");
+              this.plugin.toast(t("failedLoadBackup"));
               return;
             }
             const currentContent = await this.plugin.app.vault.read(curFile);
             await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
             await this.versioning.restoreFromSnapshot(curFile, restored);
-            this.plugin.toast("Backup restored.");
+            this.plugin.toast(t("backupRestored"));
             this.refresh();
           };
-          const deleteBtn = actions.createEl("button", { text: "Delete" });
+          const deleteBtn = actions.createEl("button", { text: t("delete") });
           deleteBtn.style.flex = "1 1 70px";
           deleteBtn.style.color = "var(--text-error)";
           deleteBtn.onclick = async (e) => {
@@ -688,11 +879,11 @@ var init_ui = __esm({
             const curFile = this.plugin.getActiveMarkdownFile();
             if (!curFile) return;
             actions.empty();
-            const confirmText = actions.createEl("span", { text: "Delete backup?" });
+            const confirmText = actions.createEl("span", { text: t("deleteBackup") });
             confirmText.style.fontSize = "0.85em";
             confirmText.style.color = "var(--text-error)";
             confirmText.style.alignSelf = "center";
-            const yesBtn = actions.createEl("button", { text: "Yes" });
+            const yesBtn = actions.createEl("button", { text: t("yes") });
             yesBtn.style.flex = "1 1 50px";
             yesBtn.style.backgroundColor = "var(--background-modifier-error)";
             yesBtn.style.color = "white";
@@ -700,14 +891,14 @@ var init_ui = __esm({
               ev.stopPropagation();
               const success = await deleteSnapshotFile(this.plugin, preRestoreBackup.filePath);
               if (success) {
-                this.plugin.toast("Backup deleted.");
+                this.plugin.toast(t("backupDeleted"));
                 this.refresh();
               } else {
-                this.plugin.toast("Failed to delete backup.");
+                this.plugin.toast(t("failedDeleteBackup"));
                 this.refresh();
               }
             };
-            const noBtn = actions.createEl("button", { text: "No" });
+            const noBtn = actions.createEl("button", { text: t("no") });
             noBtn.style.flex = "1 1 50px";
             noBtn.onclick = (ev) => {
               ev.stopPropagation();
@@ -783,8 +974,8 @@ var init_ui = __esm({
           let selectionLabel = null;
           if (this.diffMode) {
             const idx = this.diffSelection.findIndex((s) => s.filePath === snap.filePath);
-            if (idx === 0) selectionLabel = "1 (newer)";
-            else if (idx === 1) selectionLabel = "2 (older)";
+            if (idx === 0) selectionLabel = t("diffNewer");
+            else if (idx === 1) selectionLabel = t("diffOlder");
           }
           const label = nameRow.createEl("span");
           label.style.fontWeight = "500";
@@ -798,7 +989,7 @@ var init_ui = __esm({
             const editBtn = nameRow.createEl("span", { text: "\u270F\uFE0F" });
             editBtn.style.cursor = "pointer";
             editBtn.style.marginLeft = "6px";
-            editBtn.title = "Rename version";
+            editBtn.title = t("renameVersion");
             editBtn.onclick = (e) => {
               e.stopPropagation();
               renderEditState();
@@ -829,10 +1020,10 @@ var init_ui = __esm({
             if (val === "") return;
             const success = await updateSnapshotLabel(this.plugin, snap.filePath, val);
             if (success) {
-              this.plugin.toast("Label updated.");
+              this.plugin.toast(t("labelUpdated"));
               this.refresh();
             } else {
-              this.plugin.toast("Failed to update label.");
+              this.plugin.toast(t("failedUpdateLabel"));
               renderNormalState();
             }
           };
@@ -850,14 +1041,14 @@ var init_ui = __esm({
           controls.style.gap = "4px";
           const okBtn = controls.createEl("span", { text: "\u2714\uFE0F" });
           okBtn.style.cursor = "pointer";
-          okBtn.title = "Save";
+          okBtn.title = t("save");
           okBtn.onclick = async (ev) => {
             ev.stopPropagation();
             await saveLabel();
           };
           const cancelBtn = controls.createEl("span", { text: "\u274C" });
           cancelBtn.style.cursor = "pointer";
-          cancelBtn.title = "Cancel";
+          cancelBtn.title = t("cancel");
           cancelBtn.onclick = (ev) => {
             ev.stopPropagation();
             renderNormalState();
@@ -867,7 +1058,7 @@ var init_ui = __esm({
         renderNormalState();
         if (this.diffMode) {
           const diffSelectBtn = item.createEl("button", {
-            text: isSelected ? "Deselect" : this.diffSelection.length < 2 ? "Select for Diff" : "Replace Selection"
+            text: isSelected ? t("deselect") : this.diffSelection.length < 2 ? t("selectForDiff") : t("replaceSelection")
           });
           diffSelectBtn.style.width = "100%";
           diffSelectBtn.style.fontSize = "0.85em";
@@ -888,7 +1079,7 @@ var init_ui = __esm({
         actions.style.display = "flex";
         actions.style.flexWrap = "wrap";
         actions.style.gap = "4px";
-        const restoreBtn = actions.createEl("button", { text: "Restore" });
+        const restoreBtn = actions.createEl("button", { text: t("restore") });
         restoreBtn.style.flex = "1 1 70px";
         restoreBtn.onclick = async () => {
           const curFile = this.plugin.getActiveMarkdownFile();
@@ -897,14 +1088,14 @@ var init_ui = __esm({
           await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
           const restored = await readSnapshotContent(this.plugin, snap.filePath);
           if (!restored) {
-            this.plugin.toast("Failed to load selected snapshot.");
+            this.plugin.toast(t("failedLoadSnapshotDot"));
             return;
           }
           await this.versioning.restoreFromSnapshot(curFile, restored);
-          this.plugin.toast("Version restored. Current state backed up below.");
+          this.plugin.toast(t("versionRestored"));
           this.refresh();
         };
-        const previewBtn = actions.createEl("button", { text: "Preview" });
+        const previewBtn = actions.createEl("button", { text: t("preview") });
         previewBtn.style.flex = "1 1 70px";
         previewBtn.onclick = async () => {
           const curFile = this.plugin.getActiveMarkdownFile();
@@ -964,16 +1155,16 @@ var init_ui = __esm({
             btnRow.style.display = "flex";
             btnRow.style.gap = "8px";
             btnRow.style.flexShrink = "0";
-            const rst = btnRow.createEl("button", { text: "Restore This Version" });
+            const rst = btnRow.createEl("button", { text: t("restoreThisVersion") });
             rst.onclick = async () => {
               const currentContent = await this.plugin.app.vault.read(curFile);
               await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
               await this.versioning.restoreFromSnapshot(curFile, restored);
-              this.plugin.toast("Version restored. Current state backed up below.");
+              this.plugin.toast(t("versionRestored"));
               previewModal.close();
               this.refresh();
             };
-            const cls = btnRow.createEl("button", { text: "Close" });
+            const cls = btnRow.createEl("button", { text: t("close") });
             cls.onclick = () => previewModal.close();
             if (modalContainer) {
               makeDraggable(modalContainer, titleEl);
@@ -982,25 +1173,25 @@ var init_ui = __esm({
           };
           previewModal.open();
         };
-        const diffCurBtn = actions.createEl("button", { text: "Diff with Current" });
+        const diffCurBtn = actions.createEl("button", { text: t("diffWithCurrent") });
         diffCurBtn.style.flex = "1 1 70px";
         diffCurBtn.onclick = async () => {
           const curFile = this.plugin.getActiveMarkdownFile();
           if (!curFile) return;
           const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
           if (!snapContent) {
-            this.plugin.toast("Failed to load snapshot.");
+            this.plugin.toast(t("failedLoadSnapshot"));
             return;
           }
           const currentContent = await this.plugin.app.vault.read(curFile);
           const currentSnap = {
             timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-            reason: "Current file",
+            reason: t("currentFile"),
             filePath: curFile.path
           };
           new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
         };
-        const deleteBtn = actions.createEl("button", { text: "Delete" });
+        const deleteBtn = actions.createEl("button", { text: t("delete") });
         deleteBtn.style.flex = "1 1 70px";
         deleteBtn.style.color = "var(--text-error)";
         deleteBtn.onclick = async (e) => {
@@ -1008,11 +1199,11 @@ var init_ui = __esm({
           const curFile = this.plugin.getActiveMarkdownFile();
           if (!curFile) return;
           actions.empty();
-          const confirmText = actions.createEl("span", { text: "Delete?" });
+          const confirmText = actions.createEl("span", { text: t("deleteConfirm") });
           confirmText.style.fontSize = "0.85em";
           confirmText.style.color = "var(--text-error)";
           confirmText.style.alignSelf = "center";
-          const yesBtn = actions.createEl("button", { text: "Yes" });
+          const yesBtn = actions.createEl("button", { text: t("yes") });
           yesBtn.style.flex = "1 1 50px";
           yesBtn.style.backgroundColor = "var(--background-modifier-error)";
           yesBtn.style.color = "white";
@@ -1020,14 +1211,14 @@ var init_ui = __esm({
             ev.stopPropagation();
             const success = await deleteSnapshotFile(this.plugin, snap.filePath);
             if (success) {
-              this.plugin.toast("Version deleted.");
+              this.plugin.toast(t("versionDeleted"));
               this.refresh();
             } else {
-              this.plugin.toast("Failed to delete version.");
+              this.plugin.toast(t("failedDeleteVersion"));
               this.refresh();
             }
           };
-          const noBtn = actions.createEl("button", { text: "No" });
+          const noBtn = actions.createEl("button", { text: t("no") });
           noBtn.style.flex = "1 1 50px";
           noBtn.onclick = (ev) => {
             ev.stopPropagation();
@@ -1052,28 +1243,28 @@ var init_ui = __esm({
         const root = contentEl ?? document.createElement("div");
         root.innerHTML = "";
         const title = document.createElement("h2");
-        title.textContent = "Restore version";
+        title.textContent = t("restoreVersion");
         root.appendChild(title);
         this.loadingEl = document.createElement("div");
-        this.loadingEl.textContent = "Loading versions\u2026";
+        this.loadingEl.textContent = t("loadingVersions");
         root.appendChild(this.loadingEl);
         this.listEl = document.createElement("div");
         root.appendChild(this.listEl);
         await this.refresh();
         const closeBtn = document.createElement("button");
-        closeBtn.textContent = "Close";
+        closeBtn.textContent = t("close");
         closeBtn.onclick = () => this.close();
         root.appendChild(closeBtn);
         if (!contentEl) {
         }
       }
       async refresh() {
-        this.loadingEl.textContent = "Loading versions\u2026";
+        this.loadingEl.textContent = t("loadingVersions");
         this.snapshots = await listSnapshotsForFile(this.plugin, this.file.path);
         this.listEl.innerHTML = "";
         if (!this.snapshots.length) {
           const empty = document.createElement("div");
-          empty.textContent = "No saved versions yet.";
+          empty.textContent = t("noSavedVersionsYet");
           this.listEl.appendChild(empty);
           this.loadingEl.textContent = "";
           return;
@@ -1094,7 +1285,7 @@ var init_ui = __esm({
           meta.style.gap = "2px";
           const nameLabel = document.createElement("span");
           nameLabel.style.fontWeight = "500";
-          nameLabel.textContent = snap.reason || "(unnamed)";
+          nameLabel.textContent = snap.reason || t("unnamed");
           meta.appendChild(nameLabel);
           const timeLabel = document.createElement("span");
           timeLabel.style.fontSize = "0.8em";
@@ -1104,7 +1295,7 @@ var init_ui = __esm({
           meta.appendChild(timeLabel);
           row.appendChild(meta);
           const btn = document.createElement("button");
-          btn.textContent = "Restore";
+          btn.textContent = t("restore");
           btn.onclick = async () => {
             await this.restoreSnapshot(snap);
           };
@@ -1116,11 +1307,11 @@ var init_ui = __esm({
       async restoreSnapshot(snap) {
         const restored = await readSnapshotContent(this.plugin, snap.filePath);
         if (!restored) {
-          this.plugin.toast("Failed to load selected snapshot.");
+          this.plugin.toast(t("failedLoadSnapshotDot"));
           return;
         }
         await this.versioning.restoreFromSnapshot(this.file, restored);
-        this.plugin.toast("Version restored.");
+        this.plugin.toast(t("versionRestoredDot"));
         this.close();
       }
     };
@@ -1151,7 +1342,7 @@ var init_ui = __esm({
         el.style.flexDirection = "column";
         el.style.flex = "1";
         el.style.overflow = "hidden";
-        const titleEl = el.createEl("h2", { text: "Diff" });
+        const titleEl = el.createEl("h2", { text: t("diff") });
         titleEl.style.marginBottom = "2px";
         titleEl.style.flexShrink = "0";
         titleEl.style.cursor = "move";
@@ -1191,12 +1382,12 @@ var init_ui = __esm({
         stats.style.marginBottom = "8px";
         stats.style.flexShrink = "0";
         if (added === 0 && removed === 0) {
-          stats.textContent = "No differences";
+          stats.textContent = t("noDifferences");
         } else {
-          const sAdd = stats.createEl("span", { text: `+${added} added` });
+          const sAdd = stats.createEl("span", { text: t("added", { n: added }) });
           sAdd.style.color = "#2ea043";
           stats.createEl("span", { text: "  " });
-          const sRem = stats.createEl("span", { text: `-${removed} removed` });
+          const sRem = stats.createEl("span", { text: t("removed", { n: removed }) });
           sRem.style.color = "#f85149";
         }
         const diffContainer = el.createDiv();
@@ -1298,7 +1489,7 @@ var init_ui = __esm({
               const hidden = eqRun.slice(COLLAPSE, eqRun.length - COLLAPSE);
               const bar = diffContainer.createDiv();
               bar.className = "sh-diff-collapse";
-              bar.textContent = `\u25BE  ${hidden.length} unchanged lines (click to show)  \u25BE`;
+              bar.textContent = t("unchangedLinesShow", { n: hidden.length });
               const hiddenEl = diffContainer.createDiv();
               hiddenEl.className = "sh-diff-hidden";
               for (const line of hidden) {
@@ -1309,10 +1500,10 @@ var init_ui = __esm({
                 expanded = !expanded;
                 if (expanded) {
                   hiddenEl.classList.remove("sh-diff-hidden");
-                  bar.textContent = `\u25B4  ${hidden.length} unchanged lines (click to hide)  \u25B4`;
+                  bar.textContent = t("unchangedLinesHide", { n: hidden.length });
                 } else {
                   hiddenEl.classList.add("sh-diff-hidden");
-                  bar.textContent = `\u25BE  ${hidden.length} unchanged lines (click to show)  \u25BE`;
+                  bar.textContent = t("unchangedLinesShow", { n: hidden.length });
                 }
               };
               for (const line of eqRun.slice(eqRun.length - COLLAPSE)) {
@@ -1342,7 +1533,7 @@ var init_ui = __esm({
         btnRow.style.display = "flex";
         btnRow.style.gap = "8px";
         btnRow.style.flexShrink = "0";
-        const closeBtn = btnRow.createEl("button", { text: "Close" });
+        const closeBtn = btnRow.createEl("button", { text: t("close") });
         closeBtn.onclick = () => this.close();
         if (modalContainer) {
           makeDraggable(modalContainer, titleEl);
@@ -1353,19 +1544,139 @@ var init_ui = __esm({
   }
 });
 
+// src/settings.ts
+var import_obsidian2, SaveHistorySettingTab;
+var init_settings = __esm({
+  "src/settings.ts"() {
+    "use strict";
+    import_obsidian2 = require("obsidian");
+    init_i18n();
+    SaveHistorySettingTab = class extends import_obsidian2.PluginSettingTab {
+      constructor(app, plugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+      }
+      display() {
+        const el = this.containerEl;
+        el.empty();
+        const wrapper = el.createDiv();
+        wrapper.style.padding = "12px";
+        const header = wrapper.createEl("h2", { text: t("settingsTitle") });
+        header.style.marginBottom = "16px";
+        wrapper.createDiv({ text: t("language"), cls: "setting-item-name" });
+        const langDesc = wrapper.createDiv({
+          text: t("languageDesc"),
+          cls: "setting-item-description"
+        });
+        langDesc.style.fontSize = "0.85em";
+        langDesc.style.color = "var(--text-muted)";
+        langDesc.style.marginBottom = "6px";
+        const langSelect = wrapper.createEl("select");
+        langSelect.style.marginBottom = "16px";
+        langSelect.style.padding = "4px 8px";
+        langSelect.style.fontSize = "0.9em";
+        const enOpt = langSelect.createEl("option", { text: "English" });
+        enOpt.value = "en";
+        const ruOpt = langSelect.createEl("option", { text: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" });
+        ruOpt.value = "ru";
+        langSelect.value = this.plugin.settings.language;
+        langSelect.onchange = async () => {
+          const lang = langSelect.value;
+          this.plugin.settings.language = lang;
+          setLanguage(lang);
+          await this.plugin.saveSettings();
+          this.display();
+        };
+        wrapper.createDiv({ text: t("diffDisplayStyle"), cls: "setting-item-name" });
+        const diffDesc = wrapper.createDiv({
+          text: t("diffDisplayDesc"),
+          cls: "setting-item-description"
+        });
+        diffDesc.style.fontSize = "0.85em";
+        diffDesc.style.color = "var(--text-muted)";
+        diffDesc.style.marginBottom = "6px";
+        const diffSelect = wrapper.createEl("select");
+        diffSelect.style.marginBottom = "16px";
+        diffSelect.style.padding = "4px 8px";
+        diffSelect.style.fontSize = "0.9em";
+        const unifiedOpt = diffSelect.createEl("option", { text: t("unifiedInline") });
+        unifiedOpt.value = "unified";
+        const sideBySideOpt = diffSelect.createEl("option", { text: t("sideBySide") });
+        sideBySideOpt.value = "side-by-side";
+        diffSelect.value = this.plugin.settings.diffStyle;
+        diffSelect.onchange = async () => {
+          this.plugin.settings.diffStyle = diffSelect.value;
+          await this.plugin.saveSettings();
+        };
+        wrapper.createDiv({ text: t("previewOpenStyle"), cls: "setting-item-name" });
+        const previewDesc = wrapper.createDiv({
+          text: t("previewOpenDesc"),
+          cls: "setting-item-description"
+        });
+        previewDesc.style.fontSize = "0.85em";
+        previewDesc.style.color = "var(--text-muted)";
+        previewDesc.style.marginBottom = "6px";
+        const previewSelect = wrapper.createEl("select");
+        previewSelect.style.marginBottom = "16px";
+        previewSelect.style.padding = "4px 8px";
+        previewSelect.style.fontSize = "0.9em";
+        const customViewOpt = previewSelect.createEl("option", { text: t("customView") });
+        customViewOpt.value = "custom-view";
+        const tempFileOpt = previewSelect.createEl("option", { text: t("tempFile") });
+        tempFileOpt.value = "temp-file";
+        previewSelect.value = this.plugin.settings.previewStyle;
+        previewSelect.onchange = async () => {
+          this.plugin.settings.previewStyle = previewSelect.value;
+          await this.plugin.saveSettings();
+        };
+        wrapper.createDiv({ text: t("groupVersionsBy"), cls: "setting-item-name" });
+        const groupDesc = wrapper.createDiv({
+          text: t("groupVersionsDesc"),
+          cls: "setting-item-description"
+        });
+        groupDesc.style.fontSize = "0.85em";
+        groupDesc.style.color = "var(--text-muted)";
+        groupDesc.style.marginBottom = "6px";
+        const groupSelect = wrapper.createEl("select");
+        groupSelect.style.marginBottom = "16px";
+        groupSelect.style.padding = "4px 8px";
+        groupSelect.style.fontSize = "0.9em";
+        const noneOpt = groupSelect.createEl("option", { text: t("groupNone") });
+        noneOpt.value = "none";
+        const dayOpt = groupSelect.createEl("option", { text: t("groupDay") });
+        dayOpt.value = "day";
+        const weekOpt = groupSelect.createEl("option", { text: t("groupWeek") });
+        weekOpt.value = "week";
+        const monthOpt = groupSelect.createEl("option", { text: t("groupMonth") });
+        monthOpt.value = "month";
+        const yearOpt = groupSelect.createEl("option", { text: t("groupYear") });
+        yearOpt.value = "year";
+        groupSelect.value = this.plugin.settings.groupBy;
+        groupSelect.onchange = async () => {
+          this.plugin.settings.groupBy = groupSelect.value;
+          await this.plugin.saveSettings();
+        };
+      }
+    };
+  }
+});
+
 // src/main.ts
-var import_obsidian2, DEFAULT_SETTINGS, SaveHistoryPlugin;
+var import_obsidian3, DEFAULT_SETTINGS, SaveHistoryPlugin;
 var init_main = __esm({
   "src/main.ts"() {
     "use strict";
-    import_obsidian2 = require("obsidian");
+    import_obsidian3 = require("obsidian");
     init_versioning();
     init_ui();
+    init_settings();
+    init_i18n();
     DEFAULT_SETTINGS = {
       groupBy: "day",
-      collapsedGroups: {}
+      collapsedGroups: {},
+      language: "en"
     };
-    SaveHistoryPlugin = class extends import_obsidian2.Plugin {
+    SaveHistoryPlugin = class extends import_obsidian3.Plugin {
       constructor() {
         super(...arguments);
         this.disposer = null;
@@ -1379,6 +1690,7 @@ var init_main = __esm({
           (leaf) => new SaveHistoryView(leaf, this, versioning)
         );
         registerCommands(this, versioning);
+        this.addSettingTab(new SaveHistorySettingTab(this.app, this));
       }
       onunload() {
         if (this.disposer) this.disposer();
@@ -1389,6 +1701,7 @@ var init_main = __esm({
         if (data) {
           this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
         }
+        setLanguage(this.settings.language);
       }
       async saveSettings() {
         await this.saveData?.(this.settings);
@@ -1400,7 +1713,7 @@ var init_main = __esm({
         return file;
       }
       toast(message) {
-        new import_obsidian2.Notice(message);
+        new import_obsidian3.Notice(message);
       }
     };
   }
