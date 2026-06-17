@@ -22,7 +22,6 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
 };
 
 export class SaveHistoryPlugin extends Plugin {
-  private disposer: (() => void) | null = null;
   settings: SaveHistorySettings = DEFAULT_SETTINGS;
 
   async onload() {
@@ -48,17 +47,13 @@ export class SaveHistoryPlugin extends Plugin {
 
         await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
 
-        // Start cleanup from the parent directory (the file's folder in .versions(SH))
         const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
-        await removeEmptyParentDirs(this.app.vault.adapter, parentDir);
+        await removeEmptyParentDirs(this, parentDir);
       })
     );
   }
 
-  onunload() {
-    if (this.disposer) this.disposer();
-    this.disposer = null;
-  }
+  onunload() {}
 
   async loadSettings() {
     const data = await (this as any).loadData?.();

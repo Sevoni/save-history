@@ -110,6 +110,11 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			if (!newName) return;
 			if (newName === this.plugin.settings.snapshotFolder) return;
 
+			if (/[<>:"|?*]/.test(newName) || newName.startsWith("/") || newName.endsWith("/") || newName.includes("..")) {
+				this.plugin.toast(translate("snapshotFolderRenameFailed"));
+				return;
+			}
+
 			const oldName = this.plugin.settings.snapshotFolder;
 			const success = await renameSnapshotFolder(this.plugin.app.vault.adapter, oldName, newName);
 			if (success) {

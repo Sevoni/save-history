@@ -554,6 +554,7 @@ export class SaveHistoryView extends ItemView {
         dotsBtn.title = translate("moreActions");
 
         const dropdown = document.createElement("div");
+        dropdown.dataset.saveHistoryDropdown = "";
         dropdown.style.position = "fixed";
         dropdown.style.zIndex = "9999";
         dropdown.style.backgroundColor = "var(--background-primary)";
@@ -808,6 +809,7 @@ export class SaveHistoryView extends ItemView {
       if (!restored) return;
       
       const previewModal = new Modal(this.plugin.app);
+      const previewAbort = new AbortController();
       previewModal.onOpen = async () => {
         const el = previewModal.contentEl;
         el.empty();
@@ -884,10 +886,11 @@ export class SaveHistoryView extends ItemView {
         cls.onclick = () => previewModal.close();
 
         if (modalContainer) {
-          makeDraggable(modalContainer, titleEl);
-          makeResizable(modalContainer);
+          makeDraggable(modalContainer, titleEl, previewAbort.signal);
+          makeResizable(modalContainer, previewAbort.signal);
         }
       };
+      previewModal.onClose = () => previewAbort.abort();
       previewModal.open();
     };
 
@@ -902,7 +905,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   private cleanupDropdowns() {
-    document.querySelectorAll("div[style*=\"z-index: 9999\"]").forEach(el => el.remove());
+    document.querySelectorAll("[data-save-history-dropdown]").forEach(el => el.remove());
   }
 }
 
@@ -947,9 +950,6 @@ class RestoreVersionModal extends Modal {
     closeBtn.textContent = translate("close");
     closeBtn.onclick = () => this.close();
     root.appendChild(closeBtn);
-
-    if (!contentEl) {
-    }
   }
 
   private async refresh() {
@@ -1029,6 +1029,7 @@ class DiffModal extends Modal {
   private snapNew: SnapshotRecord & { filePath: string };
   private contentOld: string;
   private contentNew: string;
+  private abortController: AbortController;
 
   constructor(
     plugin: SaveHistoryPlugin,
@@ -1043,6 +1044,7 @@ class DiffModal extends Modal {
     this.snapNew = snapNew;
     this.contentOld = contentOld;
     this.contentNew = contentNew;
+    this.abortController = new AbortController();
   }
 
   onOpen() {
@@ -1129,83 +1131,86 @@ class DiffModal extends Modal {
     diffContainer.style.borderRadius = "6px";
     diffContainer.style.backgroundColor = "var(--background-primary)";
 
-    const style = document.createElement("style");
-    style.textContent = `
-      .sh-diff-row {
-        display: flex;
-        align-items: stretch;
-        min-height: 1.8em;
-        font-size: 0.85em;
-        line-height: 1.6;
-        border-bottom: 1px solid transparent;
-      }
-      .sh-diff-row-num {
-        width: 3.5em;
-        min-width: 3.5em;
-        max-width: 3.5em;
-        text-align: right;
-        padding: 2px 6px 2px 0;
-        color: var(--text-faint);
-        user-select: none;
-        font-family: var(--font-monospace);
-        font-size: 0.9em;
-        flex-shrink: 0;
-        border-right: 1px solid var(--background-modifier-border);
-      }
-      .sh-diff-row-prefix {
-        width: 1.8em;
-        min-width: 1.8em;
-        max-width: 1.8em;
-        text-align: center;
-        font-weight: 700;
-        font-family: var(--font-monospace);
-        user-select: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      .sh-diff-row-text {
-        flex: 1;
-        padding: 2px 8px;
-        overflow: hidden;
-        min-width: 0;
-      }
-      .sh-diff-row-text > *:first-child { margin-top: 0; }
-      .sh-diff-row-text > *:last-child { margin-bottom: 0; }
-      .sh-diff-row-add {
-        background: rgba(46, 160, 67, 0.10);
-      }
-      .sh-diff-row-add .sh-diff-row-prefix { color: #2ea043; }
-      .sh-diff-row-remove {
-        background: rgba(248, 81, 73, 0.10);
-      }
-      .sh-diff-row-remove .sh-diff-row-prefix { color: #f85149; }
-      .sh-diff-row-equal {
-        background: transparent;
-      }
-      .sh-diff-row-equal .sh-diff-row-text { color: var(--text-muted); }
-      .sh-diff-collapse {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 10px;
-        background: var(--background-secondary);
-        border-top: 1px solid var(--background-modifier-border);
-        border-bottom: 1px solid var(--background-modifier-border);
-        color: var(--text-faint);
-        font-size: 0.8em;
-        cursor: pointer;
-        user-select: none;
-        transition: background 0.15s, color 0.15s;
-      }
-      .sh-diff-collapse:hover {
-        background: var(--background-modifier-hover);
-        color: var(--text-muted);
-      }
-      .sh-diff-hidden { display: none; }
-    `;
-    diffContainer.appendChild(style);
+    if (!document.getElementById("save-history-diff-styles")) {
+      const style = document.createElement("style");
+      style.id = "save-history-diff-styles";
+      style.textContent = `
+        .sh-diff-row {
+          display: flex;
+          align-items: stretch;
+          min-height: 1.8em;
+          font-size: 0.85em;
+          line-height: 1.6;
+          border-bottom: 1px solid transparent;
+        }
+        .sh-diff-row-num {
+          width: 3.5em;
+          min-width: 3.5em;
+          max-width: 3.5em;
+          text-align: right;
+          padding: 2px 6px 2px 0;
+          color: var(--text-faint);
+          user-select: none;
+          font-family: var(--font-monospace);
+          font-size: 0.9em;
+          flex-shrink: 0;
+          border-right: 1px solid var(--background-modifier-border);
+        }
+        .sh-diff-row-prefix {
+          width: 1.8em;
+          min-width: 1.8em;
+          max-width: 1.8em;
+          text-align: center;
+          font-weight: 700;
+          font-family: var(--font-monospace);
+          user-select: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sh-diff-row-text {
+          flex: 1;
+          padding: 2px 8px;
+          overflow: hidden;
+          min-width: 0;
+        }
+        .sh-diff-row-text > *:first-child { margin-top: 0; }
+        .sh-diff-row-text > *:last-child { margin-bottom: 0; }
+        .sh-diff-row-add {
+          background: rgba(46, 160, 67, 0.10);
+        }
+        .sh-diff-row-add .sh-diff-row-prefix { color: #2ea043; }
+        .sh-diff-row-remove {
+          background: rgba(248, 81, 73, 0.10);
+        }
+        .sh-diff-row-remove .sh-diff-row-prefix { color: #f85149; }
+        .sh-diff-row-equal {
+          background: transparent;
+        }
+        .sh-diff-row-equal .sh-diff-row-text { color: var(--text-muted); }
+        .sh-diff-collapse {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px 10px;
+          background: var(--background-secondary);
+          border-top: 1px solid var(--background-modifier-border);
+          border-bottom: 1px solid var(--background-modifier-border);
+          color: var(--text-faint);
+          font-size: 0.8em;
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.15s, color 0.15s;
+        }
+        .sh-diff-collapse:hover {
+          background: var(--background-modifier-hover);
+          color: var(--text-muted);
+        }
+        .sh-diff-hidden { display: none; }
+      `;
+      document.head.appendChild(style);
+    }
 
     const curFile = this.plugin.getActiveMarkdownFile();
     const sourcePath = curFile?.path ?? "";
@@ -1276,9 +1281,13 @@ class DiffModal extends Modal {
     closeBtn.onclick = () => this.close();
 
     if (modalContainer) {
-      makeDraggable(modalContainer, titleEl);
-      makeResizable(modalContainer);
+      makeDraggable(modalContainer, titleEl, this.abortController.signal);
+      makeResizable(modalContainer, this.abortController.signal);
     }
+  }
+
+  onClose() {
+    this.abortController.abort();
   }
 }
 
@@ -1315,7 +1324,7 @@ async function appendDiffRow(
   }
 }
 
-function makeDraggable(el: HTMLElement, handle: HTMLElement) {
+function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSignal) {
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
 
@@ -1361,9 +1370,15 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement) {
   };
 
   handle.addEventListener("mousedown", onMouseDown);
+
+  signal?.addEventListener("abort", () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    handle.removeEventListener("mousedown", onMouseDown);
+  });
 }
 
-function makeResizable(el: HTMLElement) {
+function makeResizable(el: HTMLElement, signal?: AbortSignal) {
   const EDGE = 8;
 
   const resizer = el.createDiv();
@@ -1398,7 +1413,7 @@ function makeResizable(el: HTMLElement) {
   let resizing = false;
   let startX = 0, startY = 0, origW = 0, origH = 0;
 
-  resizer.addEventListener("mousedown", (e) => {
+  const onMouseDown = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     resizing = true;
@@ -1407,21 +1422,29 @@ function makeResizable(el: HTMLElement) {
     origW = el.offsetWidth;
     origH = el.offsetHeight;
 
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!resizing) return;
-      const newW = Math.max(320, origW + (ev.clientX - startX));
-      const newH = Math.max(200, origH + (ev.clientY - startY));
-      el.style.width = newW + "px";
-      el.style.height = newH + "px";
-    };
-
-    const onMouseUp = () => {
-      resizing = false;
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const onMouseMove = (ev: MouseEvent) => {
+    if (!resizing) return;
+    const newW = Math.max(320, origW + (ev.clientX - startX));
+    const newH = Math.max(200, origH + (ev.clientY - startY));
+    el.style.width = newW + "px";
+    el.style.height = newH + "px";
+  };
+
+  const onMouseUp = () => {
+    resizing = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  resizer.addEventListener("mousedown", onMouseDown);
+
+  signal?.addEventListener("abort", () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    resizer.removeEventListener("mousedown", onMouseDown);
   });
 }

@@ -183,15 +183,26 @@ async function savePreRestoreBackup(plugin, vaultRelativePath, content) {
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
   await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
 }
+async function resolvePath(adapter, path) {
+  const parts = path.replace(/\\/g, "/").split("/").filter((p) => p);
+  let current = "";
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part;
+    if (!await adapter.exists(current)) {
+      return null;
+    }
+  }
+  return current || null;
+}
 async function renameSnapshotFolder(adapter, oldName, newName) {
   if (oldName === newName) return true;
-  if (!await adapter.exists(oldName)) return true;
+  const resolvedOld = await resolvePath(adapter, oldName);
+  if (!resolvedOld) return true;
   const parentDir = newName.substring(0, newName.lastIndexOf("/"));
   if (parentDir) {
-    const parts = parentDir.split("/");
+    const parts = parentDir.replace(/\\/g, "/").split("/").filter((p) => p);
     let currentPath = "";
     for (const part of parts) {
-      if (!part) continue;
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       if (!await adapter.exists(currentPath)) {
         try {
@@ -202,20 +213,50 @@ async function renameSnapshotFolder(adapter, oldName, newName) {
     }
   }
   try {
-    await adapter.rename(oldName, newName);
+    await adapter.rename(resolvedOld, newName);
+    if (resolvedOld !== newName && await adapter.exists(resolvedOld)) {
+      try {
+        await adapter.remove(resolvedOld);
+      } catch {
+      }
+    }
+    const oldParent = resolvedOld.substring(0, resolvedOld.lastIndexOf("/"));
+    if (oldParent) {
+      let dir = oldParent;
+      while (dir) {
+        if (!await adapter.exists(dir)) break;
+        let listResult;
+        try {
+          listResult = await adapter.list(dir);
+        } catch {
+          break;
+        }
+        const files = listResult.files || [];
+        const folders = listResult.folders || [];
+        if (files.length > 0 || folders.length > 0) break;
+        const parent = dir.split("/").slice(0, -1).join("/");
+        try {
+          await adapter.rmdir(dir);
+        } catch {
+          break;
+        }
+        if (parent === dir) break;
+        dir = parent;
+      }
+    }
     return true;
   } catch {
     return false;
   }
 }
-async function removeEmptyParentDirs(adapter, dirPath) {
-  const snapshotRoot = ".versions(SH)";
+async function removeEmptyParentDirs(plugin, dirPath) {
+  const snapshotRoot = getSnapshotRoot(plugin);
   let currentDir = dirPath.replace(/\\/g, "/");
   while (currentDir && currentDir !== snapshotRoot && currentDir.startsWith(snapshotRoot + "/")) {
-    if (!await adapter.exists(currentDir)) break;
+    if (!await plugin.app.vault.adapter.exists(currentDir)) break;
     let isDirEmpty = false;
     try {
-      const listResult = await adapter.list(currentDir);
+      const listResult = await plugin.app.vault.adapter.list(currentDir);
       const files = listResult.files || [];
       const folders = listResult.folders || [];
       isDirEmpty = files.length === 0 && folders.length === 0;
@@ -224,7 +265,7 @@ async function removeEmptyParentDirs(adapter, dirPath) {
     }
     if (!isDirEmpty) break;
     try {
-      await adapter.rmdir(currentDir);
+      await plugin.app.vault.adapter.rmdir(currentDir);
     } catch {
       break;
     }
@@ -241,7 +282,6 @@ var init_storage = __esm({
 
 // src/versioning.ts
 function setupVersioning(plugin) {
-  let timeoutId = null;
   async function saveNowForFile(file, reason) {
     if (!file || file.extension !== "md") return "no_change";
     const content = await plugin.app.vault.read(file);
@@ -259,30 +299,12 @@ function setupVersioning(plugin) {
     await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, reason);
     return "saved";
   }
-  function startAutosave() {
-    const handler = (file) => {
-      if (!file || file.extension !== "md") return;
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(async () => {
-        const current = plugin.getActiveMarkdownFile();
-        if (!current) return;
-        await saveNowForFile(current, "auto");
-      }, 2e3);
-    };
-    plugin.app.vault.on?.("modify", handler);
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = null;
-      plugin.app.vault.off?.("modify", handler);
-    };
-  }
   async function restoreFromSnapshot(file, snapshot) {
     if (!file || file.extension !== "md") return;
     if (!snapshot?.content) return;
     await plugin.app.vault.modify(file, snapshot.content);
   }
   return {
-    startAutosave,
     saveNowForFile,
     restoreFromSnapshot
   };
@@ -674,7 +696,7 @@ async function appendDiffRow(parent, app, line, sourcePath, component) {
     }
   }
 }
-function makeDraggable(el, handle) {
+function makeDraggable(el, handle, signal) {
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
   const onMouseDown = (e) => {
@@ -712,8 +734,13 @@ function makeDraggable(el, handle) {
     document.removeEventListener("mouseup", onMouseUp);
   };
   handle.addEventListener("mousedown", onMouseDown);
+  signal?.addEventListener("abort", () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    handle.removeEventListener("mousedown", onMouseDown);
+  });
 }
-function makeResizable(el) {
+function makeResizable(el, signal) {
   const EDGE = 8;
   const resizer = el.createDiv();
   resizer.style.position = "absolute";
@@ -743,7 +770,7 @@ function makeResizable(el) {
   resizerLine2.style.transformOrigin = "right center";
   let resizing = false;
   let startX = 0, startY = 0, origW = 0, origH = 0;
-  resizer.addEventListener("mousedown", (e) => {
+  const onMouseDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
     resizing = true;
@@ -751,20 +778,26 @@ function makeResizable(el) {
     startY = e.clientY;
     origW = el.offsetWidth;
     origH = el.offsetHeight;
-    const onMouseMove = (ev) => {
-      if (!resizing) return;
-      const newW = Math.max(320, origW + (ev.clientX - startX));
-      const newH = Math.max(200, origH + (ev.clientY - startY));
-      el.style.width = newW + "px";
-      el.style.height = newH + "px";
-    };
-    const onMouseUp = () => {
-      resizing = false;
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
+  };
+  const onMouseMove = (ev) => {
+    if (!resizing) return;
+    const newW = Math.max(320, origW + (ev.clientX - startX));
+    const newH = Math.max(200, origH + (ev.clientY - startY));
+    el.style.width = newW + "px";
+    el.style.height = newH + "px";
+  };
+  const onMouseUp = () => {
+    resizing = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+  resizer.addEventListener("mousedown", onMouseDown);
+  signal?.addEventListener("abort", () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    resizer.removeEventListener("mousedown", onMouseDown);
   });
 }
 var import_obsidian, VIEW_TYPE_SAVE_HISTORY, SaveHistoryView, RestoreVersionModal, DiffModal;
@@ -1120,6 +1153,7 @@ var init_ui = __esm({
             dotsBtn.style.userSelect = "none";
             dotsBtn.title = translate("moreActions");
             const dropdown = document.createElement("div");
+            dropdown.dataset.saveHistoryDropdown = "";
             dropdown.style.position = "fixed";
             dropdown.style.zIndex = "9999";
             dropdown.style.backgroundColor = "var(--background-primary)";
@@ -1341,6 +1375,7 @@ var init_ui = __esm({
           const restored = await readSnapshotContent(this.plugin, snap.filePath);
           if (!restored) return;
           const previewModal = new import_obsidian.Modal(this.plugin.app);
+          const previewAbort = new AbortController();
           previewModal.onOpen = async () => {
             const el = previewModal.contentEl;
             el.empty();
@@ -1405,10 +1440,11 @@ var init_ui = __esm({
             const cls = btnRow.createEl("button", { text: translate("close") });
             cls.onclick = () => previewModal.close();
             if (modalContainer) {
-              makeDraggable(modalContainer, titleEl);
-              makeResizable(modalContainer);
+              makeDraggable(modalContainer, titleEl, previewAbort.signal);
+              makeResizable(modalContainer, previewAbort.signal);
             }
           };
+          previewModal.onClose = () => previewAbort.abort();
           previewModal.open();
         };
       }
@@ -1419,7 +1455,7 @@ var init_ui = __esm({
         this.cleanupDropdowns();
       }
       cleanupDropdowns() {
-        document.querySelectorAll('div[style*="z-index: 9999"]').forEach((el) => el.remove());
+        document.querySelectorAll("[data-save-history-dropdown]").forEach((el) => el.remove());
       }
     };
     RestoreVersionModal = class extends import_obsidian.Modal {
@@ -1447,8 +1483,6 @@ var init_ui = __esm({
         closeBtn.textContent = translate("close");
         closeBtn.onclick = () => this.close();
         root.appendChild(closeBtn);
-        if (!contentEl) {
-        }
       }
       async refresh() {
         this.loadingEl.textContent = translate("loadingVersions");
@@ -1515,6 +1549,7 @@ var init_ui = __esm({
         this.snapNew = snapNew;
         this.contentOld = contentOld;
         this.contentNew = contentNew;
+        this.abortController = new AbortController();
       }
       onOpen() {
         const el = this.contentEl;
@@ -1588,83 +1623,86 @@ var init_ui = __esm({
         diffContainer.style.border = "1px solid var(--background-modifier-border)";
         diffContainer.style.borderRadius = "6px";
         diffContainer.style.backgroundColor = "var(--background-primary)";
-        const style = document.createElement("style");
-        style.textContent = `
-      .sh-diff-row {
-        display: flex;
-        align-items: stretch;
-        min-height: 1.8em;
-        font-size: 0.85em;
-        line-height: 1.6;
-        border-bottom: 1px solid transparent;
-      }
-      .sh-diff-row-num {
-        width: 3.5em;
-        min-width: 3.5em;
-        max-width: 3.5em;
-        text-align: right;
-        padding: 2px 6px 2px 0;
-        color: var(--text-faint);
-        user-select: none;
-        font-family: var(--font-monospace);
-        font-size: 0.9em;
-        flex-shrink: 0;
-        border-right: 1px solid var(--background-modifier-border);
-      }
-      .sh-diff-row-prefix {
-        width: 1.8em;
-        min-width: 1.8em;
-        max-width: 1.8em;
-        text-align: center;
-        font-weight: 700;
-        font-family: var(--font-monospace);
-        user-select: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      .sh-diff-row-text {
-        flex: 1;
-        padding: 2px 8px;
-        overflow: hidden;
-        min-width: 0;
-      }
-      .sh-diff-row-text > *:first-child { margin-top: 0; }
-      .sh-diff-row-text > *:last-child { margin-bottom: 0; }
-      .sh-diff-row-add {
-        background: rgba(46, 160, 67, 0.10);
-      }
-      .sh-diff-row-add .sh-diff-row-prefix { color: #2ea043; }
-      .sh-diff-row-remove {
-        background: rgba(248, 81, 73, 0.10);
-      }
-      .sh-diff-row-remove .sh-diff-row-prefix { color: #f85149; }
-      .sh-diff-row-equal {
-        background: transparent;
-      }
-      .sh-diff-row-equal .sh-diff-row-text { color: var(--text-muted); }
-      .sh-diff-collapse {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 10px;
-        background: var(--background-secondary);
-        border-top: 1px solid var(--background-modifier-border);
-        border-bottom: 1px solid var(--background-modifier-border);
-        color: var(--text-faint);
-        font-size: 0.8em;
-        cursor: pointer;
-        user-select: none;
-        transition: background 0.15s, color 0.15s;
-      }
-      .sh-diff-collapse:hover {
-        background: var(--background-modifier-hover);
-        color: var(--text-muted);
-      }
-      .sh-diff-hidden { display: none; }
-    `;
-        diffContainer.appendChild(style);
+        if (!document.getElementById("save-history-diff-styles")) {
+          const style = document.createElement("style");
+          style.id = "save-history-diff-styles";
+          style.textContent = `
+        .sh-diff-row {
+          display: flex;
+          align-items: stretch;
+          min-height: 1.8em;
+          font-size: 0.85em;
+          line-height: 1.6;
+          border-bottom: 1px solid transparent;
+        }
+        .sh-diff-row-num {
+          width: 3.5em;
+          min-width: 3.5em;
+          max-width: 3.5em;
+          text-align: right;
+          padding: 2px 6px 2px 0;
+          color: var(--text-faint);
+          user-select: none;
+          font-family: var(--font-monospace);
+          font-size: 0.9em;
+          flex-shrink: 0;
+          border-right: 1px solid var(--background-modifier-border);
+        }
+        .sh-diff-row-prefix {
+          width: 1.8em;
+          min-width: 1.8em;
+          max-width: 1.8em;
+          text-align: center;
+          font-weight: 700;
+          font-family: var(--font-monospace);
+          user-select: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sh-diff-row-text {
+          flex: 1;
+          padding: 2px 8px;
+          overflow: hidden;
+          min-width: 0;
+        }
+        .sh-diff-row-text > *:first-child { margin-top: 0; }
+        .sh-diff-row-text > *:last-child { margin-bottom: 0; }
+        .sh-diff-row-add {
+          background: rgba(46, 160, 67, 0.10);
+        }
+        .sh-diff-row-add .sh-diff-row-prefix { color: #2ea043; }
+        .sh-diff-row-remove {
+          background: rgba(248, 81, 73, 0.10);
+        }
+        .sh-diff-row-remove .sh-diff-row-prefix { color: #f85149; }
+        .sh-diff-row-equal {
+          background: transparent;
+        }
+        .sh-diff-row-equal .sh-diff-row-text { color: var(--text-muted); }
+        .sh-diff-collapse {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px 10px;
+          background: var(--background-secondary);
+          border-top: 1px solid var(--background-modifier-border);
+          border-bottom: 1px solid var(--background-modifier-border);
+          color: var(--text-faint);
+          font-size: 0.8em;
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.15s, color 0.15s;
+        }
+        .sh-diff-collapse:hover {
+          background: var(--background-modifier-hover);
+          color: var(--text-muted);
+        }
+        .sh-diff-hidden { display: none; }
+      `;
+          document.head.appendChild(style);
+        }
         const curFile = this.plugin.getActiveMarkdownFile();
         const sourcePath = curFile?.path ?? "";
         const app = this.plugin.app;
@@ -1728,9 +1766,12 @@ var init_ui = __esm({
         const closeBtn = btnRow.createEl("button", { text: translate("close") });
         closeBtn.onclick = () => this.close();
         if (modalContainer) {
-          makeDraggable(modalContainer, titleEl);
-          makeResizable(modalContainer);
+          makeDraggable(modalContainer, titleEl, this.abortController.signal);
+          makeResizable(modalContainer, this.abortController.signal);
         }
+      }
+      onClose() {
+        this.abortController.abort();
       }
     };
   }
@@ -1835,6 +1876,10 @@ var init_settings = __esm({
           const newName = folderInput.value.trim();
           if (!newName) return;
           if (newName === this.plugin.settings.snapshotFolder) return;
+          if (/[<>:"|?*]/.test(newName) || newName.startsWith("/") || newName.endsWith("/") || newName.includes("..")) {
+            this.plugin.toast(translate("snapshotFolderRenameFailed"));
+            return;
+          }
           const oldName = this.plugin.settings.snapshotFolder;
           const success = await renameSnapshotFolder(this.plugin.app.vault.adapter, oldName, newName);
           if (success) {
@@ -1879,7 +1924,6 @@ var init_main = __esm({
     SaveHistoryPlugin = class extends import_obsidian3.Plugin {
       constructor() {
         super(...arguments);
-        this.disposer = null;
         this.settings = DEFAULT_SETTINGS;
       }
       async onload() {
@@ -1898,13 +1942,11 @@ var init_main = __esm({
             const newDir = getSnapshotDirPath(this, file.path);
             await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
             const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
-            await removeEmptyParentDirs(this.app.vault.adapter, parentDir);
+            await removeEmptyParentDirs(this, parentDir);
           })
         );
       }
       onunload() {
-        if (this.disposer) this.disposer();
-        this.disposer = null;
       }
       async loadSettings() {
         const data = await this.loadData?.();

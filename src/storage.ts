@@ -238,17 +238,29 @@ export async function savePreRestoreBackup(
   await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
 }
 
+async function resolvePath(adapter: any, path: string): Promise<string | null> {
+  const parts = path.replace(/\\/g, "/").split("/").filter(p => p);
+  let current = "";
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part;
+    if (!(await adapter.exists(current))) {
+      return null;
+    }
+  }
+  return current || null;
+}
+
 export async function renameSnapshotFolder(adapter: any, oldName: string, newName: string): Promise<boolean> {
   if (oldName === newName) return true;
-  if (!(await adapter.exists(oldName))) return true;
 
-  // Ensure target parent directory exists
+  const resolvedOld = await resolvePath(adapter, oldName);
+  if (!resolvedOld) return true;
+
   const parentDir = newName.substring(0, newName.lastIndexOf("/"));
   if (parentDir) {
-    const parts = parentDir.split("/");
+    const parts = parentDir.replace(/\\/g, "/").split("/").filter(p => p);
     let currentPath = "";
     for (const part of parts) {
-      if (!part) continue;
       currentPath = currentPath ? `${currentPath}/${part}` : part;
       if (!(await adapter.exists(currentPath))) {
         try {
@@ -261,23 +273,58 @@ export async function renameSnapshotFolder(adapter: any, oldName: string, newNam
   }
 
   try {
-    await adapter.rename(oldName, newName);
+    await adapter.rename(resolvedOld, newName);
+
+    if (resolvedOld !== newName && await adapter.exists(resolvedOld)) {
+      try {
+        await adapter.remove(resolvedOld);
+      } catch {
+        // ignore — best effort cleanup
+      }
+    }
+
+    // Clean up empty parent dirs left behind after the move
+    const oldParent = resolvedOld.substring(0, resolvedOld.lastIndexOf("/"));
+    if (oldParent) {
+      let dir = oldParent;
+      while (dir) {
+        if (!(await adapter.exists(dir))) break;
+        let listResult;
+        try {
+          listResult = await adapter.list(dir);
+        } catch {
+          break;
+        }
+        const files = listResult.files || [];
+        const folders = listResult.folders || [];
+        if (files.length > 0 || folders.length > 0) break;
+        const parent = dir.split("/").slice(0, -1).join("/");
+        try {
+          await adapter.rmdir(dir);
+        } catch {
+          break;
+        }
+        if (parent === dir) break;
+        dir = parent;
+      }
+    }
+
     return true;
   } catch {
     return false;
   }
 }
 
-export async function removeEmptyParentDirs(adapter: any, dirPath: string) {
-  const snapshotRoot = ".versions(SH)";
+export async function removeEmptyParentDirs(plugin: SaveHistoryPlugin, dirPath: string) {
+  const snapshotRoot = getSnapshotRoot(plugin);
   let currentDir = dirPath.replace(/\\/g, "/");
 
   while (currentDir && currentDir !== snapshotRoot && currentDir.startsWith(snapshotRoot + "/")) {
-    if (!(await adapter.exists(currentDir))) break;
+    if (!(await plugin.app.vault.adapter.exists(currentDir))) break;
 
     let isDirEmpty = false;
     try {
-      const listResult = await adapter.list(currentDir);
+      const listResult = await plugin.app.vault.adapter.list(currentDir);
       const files = listResult.files || [];
       const folders = listResult.folders || [];
       isDirEmpty = files.length === 0 && folders.length === 0;
@@ -288,7 +335,7 @@ export async function removeEmptyParentDirs(adapter: any, dirPath: string) {
     if (!isDirEmpty) break;
 
     try {
-      await adapter.rmdir(currentDir);
+      await plugin.app.vault.adapter.rmdir(currentDir);
     } catch {
       break;
     }
