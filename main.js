@@ -1550,6 +1550,7 @@ var init_settings = __esm({
   "src/settings.ts"() {
     "use strict";
     import_obsidian2 = require("obsidian");
+    init_ui();
     init_i18n();
     SaveHistorySettingTab = class extends import_obsidian2.PluginSettingTab {
       constructor(app, plugin) {
@@ -1586,48 +1587,7 @@ var init_settings = __esm({
           setLanguage(lang);
           await this.plugin.saveSettings();
           this.display();
-        };
-        wrapper.createDiv({ text: t("diffDisplayStyle"), cls: "setting-item-name" });
-        const diffDesc = wrapper.createDiv({
-          text: t("diffDisplayDesc"),
-          cls: "setting-item-description"
-        });
-        diffDesc.style.fontSize = "0.85em";
-        diffDesc.style.color = "var(--text-muted)";
-        diffDesc.style.marginBottom = "6px";
-        const diffSelect = wrapper.createEl("select");
-        diffSelect.style.marginBottom = "16px";
-        diffSelect.style.padding = "4px 8px";
-        diffSelect.style.fontSize = "0.9em";
-        const unifiedOpt = diffSelect.createEl("option", { text: t("unifiedInline") });
-        unifiedOpt.value = "unified";
-        const sideBySideOpt = diffSelect.createEl("option", { text: t("sideBySide") });
-        sideBySideOpt.value = "side-by-side";
-        diffSelect.value = this.plugin.settings.diffStyle;
-        diffSelect.onchange = async () => {
-          this.plugin.settings.diffStyle = diffSelect.value;
-          await this.plugin.saveSettings();
-        };
-        wrapper.createDiv({ text: t("previewOpenStyle"), cls: "setting-item-name" });
-        const previewDesc = wrapper.createDiv({
-          text: t("previewOpenDesc"),
-          cls: "setting-item-description"
-        });
-        previewDesc.style.fontSize = "0.85em";
-        previewDesc.style.color = "var(--text-muted)";
-        previewDesc.style.marginBottom = "6px";
-        const previewSelect = wrapper.createEl("select");
-        previewSelect.style.marginBottom = "16px";
-        previewSelect.style.padding = "4px 8px";
-        previewSelect.style.fontSize = "0.9em";
-        const customViewOpt = previewSelect.createEl("option", { text: t("customView") });
-        customViewOpt.value = "custom-view";
-        const tempFileOpt = previewSelect.createEl("option", { text: t("tempFile") });
-        tempFileOpt.value = "temp-file";
-        previewSelect.value = this.plugin.settings.previewStyle;
-        previewSelect.onchange = async () => {
-          this.plugin.settings.previewStyle = previewSelect.value;
-          await this.plugin.saveSettings();
+          this.refreshSidebarViews();
         };
         wrapper.createDiv({ text: t("groupVersionsBy"), cls: "setting-item-name" });
         const groupDesc = wrapper.createDiv({
@@ -1655,7 +1615,16 @@ var init_settings = __esm({
         groupSelect.onchange = async () => {
           this.plugin.settings.groupBy = groupSelect.value;
           await this.plugin.saveSettings();
+          this.refreshSidebarViews();
         };
+      }
+      refreshSidebarViews() {
+        const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+        for (const leaf of leaves) {
+          if (leaf.view instanceof SaveHistoryView) {
+            leaf.view.refresh();
+          }
+        }
       }
     };
   }

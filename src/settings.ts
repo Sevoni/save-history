@@ -1,5 +1,6 @@
 import { PluginSettingTab } from "obsidian";
 import { SaveHistoryPlugin } from "./main";
+import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { t, setLanguage, type Language } from "./i18n";
 
 export class SaveHistorySettingTab extends PluginSettingTab {
@@ -45,54 +46,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			setLanguage(lang);
 			await this.plugin.saveSettings();
 			this.display();
-		};
-
-		// Diff style
-		wrapper.createDiv({ text: t("diffDisplayStyle"), cls: "setting-item-name" });
-		const diffDesc = wrapper.createDiv({
-			text: t("diffDisplayDesc"),
-			cls: "setting-item-description",
-		});
-		diffDesc.style.fontSize = "0.85em";
-		diffDesc.style.color = "var(--text-muted)";
-		diffDesc.style.marginBottom = "6px";
-
-		const diffSelect = wrapper.createEl("select") as HTMLSelectElement;
-		diffSelect.style.marginBottom = "16px";
-		diffSelect.style.padding = "4px 8px";
-		diffSelect.style.fontSize = "0.9em";
-		const unifiedOpt = diffSelect.createEl("option", { text: t("unifiedInline") });
-		unifiedOpt.value = "unified";
-		const sideBySideOpt = diffSelect.createEl("option", { text: t("sideBySide") });
-		sideBySideOpt.value = "side-by-side";
-		diffSelect.value = this.plugin.settings.diffStyle;
-		diffSelect.onchange = async () => {
-			this.plugin.settings.diffStyle = diffSelect.value as "unified" | "side-by-side";
-			await this.plugin.saveSettings();
-		};
-
-		// Preview style
-		wrapper.createDiv({ text: t("previewOpenStyle"), cls: "setting-item-name" });
-		const previewDesc = wrapper.createDiv({
-			text: t("previewOpenDesc"),
-			cls: "setting-item-description",
-		});
-		previewDesc.style.fontSize = "0.85em";
-		previewDesc.style.color = "var(--text-muted)";
-		previewDesc.style.marginBottom = "6px";
-
-		const previewSelect = wrapper.createEl("select") as HTMLSelectElement;
-		previewSelect.style.marginBottom = "16px";
-		previewSelect.style.padding = "4px 8px";
-		previewSelect.style.fontSize = "0.9em";
-		const customViewOpt = previewSelect.createEl("option", { text: t("customView") });
-		customViewOpt.value = "custom-view";
-		const tempFileOpt = previewSelect.createEl("option", { text: t("tempFile") });
-		tempFileOpt.value = "temp-file";
-		previewSelect.value = this.plugin.settings.previewStyle;
-		previewSelect.onchange = async () => {
-			this.plugin.settings.previewStyle = previewSelect.value as "custom-view" | "temp-file";
-			await this.plugin.saveSettings();
+			this.refreshSidebarViews();
 		};
 
 		// Group by
@@ -123,6 +77,16 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		groupSelect.onchange = async () => {
 			this.plugin.settings.groupBy = groupSelect.value as "none" | "day" | "week" | "month" | "year";
 			await this.plugin.saveSettings();
+			this.refreshSidebarViews();
 		};
+	}
+
+	private refreshSidebarViews() {
+		const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+		for (const leaf of leaves) {
+			if (leaf.view instanceof SaveHistoryView) {
+				(leaf.view as SaveHistoryView).refresh();
+			}
+		}
 	}
 }
