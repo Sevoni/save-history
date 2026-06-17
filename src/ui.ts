@@ -734,6 +734,25 @@ export class SaveHistoryView extends ItemView {
       previewModal.open();
     };
 
+    const diffCurBtn = actions.createEl("button", { text: "Diff with Current" });
+    diffCurBtn.style.flex = "1 1 70px";
+    diffCurBtn.onclick = async () => {
+      const curFile = this.plugin.getActiveMarkdownFile();
+      if (!curFile) return;
+      const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
+      if (!snapContent) {
+        this.plugin.toast("Failed to load snapshot.");
+        return;
+      }
+      const currentContent = await this.plugin.app.vault.read(curFile);
+      const currentSnap: SnapshotRecord & { filePath: string } = {
+        timestamp: new Date().toISOString(),
+        reason: "Current file",
+        filePath: curFile.path,
+      };
+      new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
+    };
+
     const deleteBtn = actions.createEl("button", { text: "Delete" });
     deleteBtn.style.flex = "1 1 70px";
     deleteBtn.style.color = "var(--text-error)";
