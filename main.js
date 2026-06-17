@@ -126,10 +126,14 @@ async function removeEmptySnapshotDirs(plugin, filePath) {
       break;
     }
     const remainingFiles = (listResult.files || []).filter((p) => {
-      const name = p.replace(/\\/g, "/").split("/").pop();
-      return name && !name.startsWith(".");
+      const name = p.replace(/\\/g, "/").split("/").pop() || "";
+      return !name.startsWith(".");
     });
-    if (remainingFiles.length > 0) break;
+    const remainingFolders = (listResult.folders || []).filter((p) => {
+      const name = p.replace(/\\/g, "/").split("/").pop() || "";
+      return !name.startsWith(".");
+    });
+    if (remainingFiles.length > 0 || remainingFolders.length > 0) break;
     try {
       await adapter.rmdir(dir);
     } catch {
@@ -182,11 +186,49 @@ async function savePreRestoreBackup(plugin, vaultRelativePath, content) {
 async function renameSnapshotFolder(adapter, oldName, newName) {
   if (oldName === newName) return true;
   if (!await adapter.exists(oldName)) return true;
+  const parentDir = newName.substring(0, newName.lastIndexOf("/"));
+  if (parentDir) {
+    const parts = parentDir.split("/");
+    let currentPath = "";
+    for (const part of parts) {
+      if (!part) continue;
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      if (!await adapter.exists(currentPath)) {
+        try {
+          await adapter.mkdir(currentPath);
+        } catch {
+        }
+      }
+    }
+  }
   try {
     await adapter.rename(oldName, newName);
     return true;
   } catch {
     return false;
+  }
+}
+async function removeEmptyParentDirs(adapter, dirPath) {
+  const snapshotRoot = ".versions(SH)";
+  let currentDir = dirPath.replace(/\\/g, "/");
+  while (currentDir && currentDir !== snapshotRoot && currentDir.startsWith(snapshotRoot + "/")) {
+    if (!await adapter.exists(currentDir)) break;
+    let isDirEmpty = false;
+    try {
+      const listResult = await adapter.list(currentDir);
+      const files = listResult.files || [];
+      const folders = listResult.folders || [];
+      isDirEmpty = files.length === 0 && folders.length === 0;
+    } catch {
+      break;
+    }
+    if (!isDirEmpty) break;
+    try {
+      await adapter.rmdir(currentDir);
+    } catch {
+      break;
+    }
+    currentDir = currentDir.split("/").slice(0, -1).join("/");
   }
 }
 var LEGACY_SNAPSHOT_ROOT;
@@ -201,11 +243,21 @@ var init_storage = __esm({
 function setupVersioning(plugin) {
   let timeoutId = null;
   async function saveNowForFile(file, reason) {
-    if (!file || file.extension !== "md") return;
+    if (!file || file.extension !== "md") return "no_change";
     const content = await plugin.app.vault.read(file);
     const vaultRelativePath = file.path;
+    const snapshots = await listSnapshotsForFile(plugin, vaultRelativePath);
+    const nonPreRestore = snapshots.filter((s) => s.reason !== "pre-restore");
+    if (nonPreRestore.length > 0) {
+      const latest = nonPreRestore[0];
+      const latestContent = await readSnapshotContent(plugin, latest.filePath);
+      if (latestContent && latestContent.content === content) {
+        return "no_change";
+      }
+    }
     const timestamp = (/* @__PURE__ */ new Date()).toISOString();
     await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, reason);
+    return "saved";
   }
   function startAutosave() {
     const handler = (file) => {
@@ -393,7 +445,8 @@ var init_locale = __esm({
       snapshotFolderRenamed: "Folder renamed successfully.",
       snapshotFolderRenameFailed: "Failed to rename folder.",
       versionPreview: "Version Preview",
-      noPreviewLoaded: "No preview loaded."
+      noPreviewLoaded: "No preview loaded.",
+      noChangesDetected: "Version not saved \u2014 no changes detected."
     };
     ru = {
       cmdSaveNow: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E",
@@ -476,7 +529,8 @@ var init_locale = __esm({
       snapshotFolderRenamed: "\u041F\u0430\u043F\u043A\u0430 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u0430.",
       snapshotFolderRenameFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443.",
       versionPreview: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0432\u0435\u0440\u0441\u0438\u0438",
-      noPreviewLoaded: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D."
+      noPreviewLoaded: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D.",
+      noChangesDetected: "\u0412\u0435\u0440\u0441\u0438\u044F \u043D\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430 \u2014 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439 \u043D\u0435 \u043E\u0431\u043D\u0430\u0440\u0443\u0436\u0435\u043D\u043E."
     };
     translations = { en, ru };
     currentLanguage = "en";
@@ -523,8 +577,8 @@ function registerCommands(plugin, versioning) {
         plugin.toast(translate("noFileOpenSave"));
         return;
       }
-      await versioning.saveNowForFile(file, "manual");
-      plugin.toast(translate("versionSaved"));
+      const result = await versioning.saveNowForFile(file, "manual");
+      plugin.toast(result === "saved" ? translate("versionSaved") : translate("noChangesDetected"));
       const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
       for (const leaf of leaves) {
         if (leaf.view instanceof SaveHistoryView) {
@@ -798,8 +852,8 @@ var init_ui = __esm({
         saveBtn.onclick = async () => {
           const curFile = this.plugin.getActiveMarkdownFile();
           if (!curFile) return;
-          await this.versioning.saveNowForFile(curFile, "manual");
-          this.plugin.toast(translate("versionSaved"));
+          const result = await this.versioning.saveNowForFile(curFile, "manual");
+          this.plugin.toast(result === "saved" ? translate("versionSaved") : translate("noChangesDetected"));
           this.refresh();
         };
         const diffBtnRow = wrapper.createDiv();
@@ -1843,6 +1897,8 @@ var init_main = __esm({
             const oldDir = getSnapshotDirPath(this, oldPath);
             const newDir = getSnapshotDirPath(this, file.path);
             await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
+            const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
+            await removeEmptyParentDirs(this.app.vault.adapter, parentDir);
           })
         );
       }

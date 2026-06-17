@@ -103,6 +103,7 @@ type TranslationKeys = {
   // Preview view
   versionPreview: string;
   noPreviewLoaded: string;
+  noChangesDetected: string;
 };
 
 const en: TranslationKeys = {
@@ -197,6 +198,7 @@ const en: TranslationKeys = {
 
   versionPreview: "Version Preview",
   noPreviewLoaded: "No preview loaded.",
+  noChangesDetected: "Version not saved — no changes detected.",
 };
 
 const ru: TranslationKeys = {
@@ -291,6 +293,7 @@ const ru: TranslationKeys = {
 
   versionPreview: "Просмотр версии",
   noPreviewLoaded: "Просмотр не загружен.",
+  noChangesDetected: "Версия не сохранена — изменений не обнаружено.",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru };

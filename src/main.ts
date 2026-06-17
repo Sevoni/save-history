@@ -3,7 +3,7 @@ import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder } from "./storage";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs } from "./storage";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
@@ -47,6 +47,10 @@ export class SaveHistoryPlugin extends Plugin {
         const newDir = getSnapshotDirPath(this, file.path);
 
         await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
+
+        // Start cleanup from the parent directory (the file's folder in .versions(SH))
+        const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
+        await removeEmptyParentDirs(this.app.vault.adapter, parentDir);
       })
     );
   }

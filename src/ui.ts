@@ -59,8 +59,8 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
         plugin.toast(translate("noFileOpenSave"));
         return;
       }
-      await versioning.saveNowForFile(file, "manual");
-      plugin.toast(translate("versionSaved"));
+      const result = await versioning.saveNowForFile(file, "manual");
+      plugin.toast(result === "saved" ? translate("versionSaved") : translate("noChangesDetected"));
       
       // Refresh active view if open
       const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
@@ -233,8 +233,8 @@ export class SaveHistoryView extends ItemView {
     saveBtn.onclick = async () => {
       const curFile = this.plugin.getActiveMarkdownFile();
       if (!curFile) return;
-      await this.versioning.saveNowForFile(curFile, "manual");
-      this.plugin.toast(translate("versionSaved"));
+      const result = await this.versioning.saveNowForFile(curFile, "manual");
+      this.plugin.toast(result === "saved" ? translate("versionSaved") : translate("noChangesDetected"));
       this.refresh();
     };
 

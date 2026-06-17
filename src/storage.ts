@@ -160,11 +160,15 @@ async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: stri
     }
 
     const remainingFiles = (listResult.files || []).filter((p: string) => {
-      const name = p.replace(/\\/g, "/").split("/").pop();
-      return name && !name.startsWith(".");
+      const name = p.replace(/\\/g, "/").split("/").pop() || "";
+      return !name.startsWith(".");
+    });
+    const remainingFolders = (listResult.folders || []).filter((p: string) => {
+      const name = p.replace(/\\/g, "/").split("/").pop() || "";
+      return !name.startsWith(".");
     });
 
-    if (remainingFiles.length > 0) break;
+    if (remainingFiles.length > 0 || remainingFolders.length > 0) break;
 
     try {
       await adapter.rmdir(dir);
@@ -238,10 +242,57 @@ export async function renameSnapshotFolder(adapter: any, oldName: string, newNam
   if (oldName === newName) return true;
   if (!(await adapter.exists(oldName))) return true;
 
+  // Ensure target parent directory exists
+  const parentDir = newName.substring(0, newName.lastIndexOf("/"));
+  if (parentDir) {
+    const parts = parentDir.split("/");
+    let currentPath = "";
+    for (const part of parts) {
+      if (!part) continue;
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      if (!(await adapter.exists(currentPath))) {
+        try {
+          await adapter.mkdir(currentPath);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   try {
     await adapter.rename(oldName, newName);
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function removeEmptyParentDirs(adapter: any, dirPath: string) {
+  const snapshotRoot = ".versions(SH)";
+  let currentDir = dirPath.replace(/\\/g, "/");
+
+  while (currentDir && currentDir !== snapshotRoot && currentDir.startsWith(snapshotRoot + "/")) {
+    if (!(await adapter.exists(currentDir))) break;
+
+    let isDirEmpty = false;
+    try {
+      const listResult = await adapter.list(currentDir);
+      const files = listResult.files || [];
+      const folders = listResult.folders || [];
+      isDirEmpty = files.length === 0 && folders.length === 0;
+    } catch {
+      break;
+    }
+
+    if (!isDirEmpty) break;
+
+    try {
+      await adapter.rmdir(currentDir);
+    } catch {
+      break;
+    }
+
+    currentDir = currentDir.split("/").slice(0, -1).join("/");
   }
 }
