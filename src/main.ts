@@ -3,6 +3,7 @@ import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, type Language } from "./locale";
+import { getSnapshotDirPath, renameSnapshotFolder } from "./storage";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
@@ -37,6 +38,17 @@ export class SaveHistoryPlugin extends Plugin {
     registerCommands(this, versioning);
 
     this.addSettingTab(new SaveHistorySettingTab(this.app, this));
+
+    this.registerEvent(
+      this.app.vault.on("rename", async (file, oldPath) => {
+        if (!(file instanceof TFile) || file.extension !== "md") return;
+
+        const oldDir = getSnapshotDirPath(this, oldPath);
+        const newDir = getSnapshotDirPath(this, file.path);
+
+        await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
+      })
+    );
   }
 
   onunload() {

@@ -1815,6 +1815,7 @@ var init_main = __esm({
     init_ui();
     init_settings();
     init_locale();
+    init_storage();
     DEFAULT_SETTINGS = {
       groupBy: "day",
       collapsedGroups: {},
@@ -1836,6 +1837,14 @@ var init_main = __esm({
         );
         registerCommands(this, versioning);
         this.addSettingTab(new SaveHistorySettingTab(this.app, this));
+        this.registerEvent(
+          this.app.vault.on("rename", async (file, oldPath) => {
+            if (!(file instanceof import_obsidian3.TFile) || file.extension !== "md") return;
+            const oldDir = getSnapshotDirPath(this, oldPath);
+            const newDir = getSnapshotDirPath(this, file.path);
+            await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
+          })
+        );
       }
       onunload() {
         if (this.disposer) this.disposer();
