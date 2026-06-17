@@ -138,6 +138,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   async onOpen() {
+    this.cleanupDropdowns();
     this.container.empty();
     
     const wrapper = this.container.createDiv({ cls: "save-history-sidebar" });
@@ -205,10 +206,11 @@ export class SaveHistoryView extends ItemView {
 
     const diffBtnRow = wrapper.createDiv();
     diffBtnRow.style.display = "flex";
+    diffBtnRow.style.flexWrap = "wrap";
     diffBtnRow.style.gap = "6px";
 
     const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? translate("cancelDiff") : translate("diffTwoVersions") });
-    diffToggleBtn.style.flex = "1";
+    diffToggleBtn.style.flex = "1 1 100px";
     diffToggleBtn.onclick = () => {
       this.diffMode = !this.diffMode;
       this.diffSelection = [];
@@ -217,7 +219,7 @@ export class SaveHistoryView extends ItemView {
 
     if (this.diffMode && this.diffSelection.length === 2) {
       const diffGoBtn = diffBtnRow.createEl("button", { text: translate("showDiff") });
-      diffGoBtn.style.flex = "1";
+      diffGoBtn.style.flex = "1 1 100px";
       diffGoBtn.style.fontWeight = "600";
       diffGoBtn.onclick = async () => {
         const recOld = await readSnapshotContent(this.plugin, this.diffSelection[1].filePath);
@@ -228,14 +230,6 @@ export class SaveHistoryView extends ItemView {
         }
         new DiffModal(this.plugin, this.diffSelection[1], this.diffSelection[0], recOld.content, recNew.content).open();
         this.diffMode = false;
-        this.diffSelection = [];
-        this.refresh();
-      };
-    }
-
-    if (this.diffMode && this.diffSelection.length > 0) {
-      const diffClearBtn = diffBtnRow.createEl("button", { text: translate("clear") });
-      diffClearBtn.onclick = () => {
         this.diffSelection = [];
         this.refresh();
       };
@@ -473,6 +467,7 @@ export class SaveHistoryView extends ItemView {
     item.style.display = "flex";
     item.style.flexDirection = "column";
     item.style.gap = "4px";
+    item.style.position = "relative";
 
     const isSelected = this.diffSelection.some(s => s.filePath === snap.filePath);
     if (isSelected) {
@@ -514,14 +509,110 @@ export class SaveHistoryView extends ItemView {
       }
 
       if (!this.diffMode) {
-        const editBtn = nameRow.createEl("span", { text: "✏️" });
-        editBtn.style.cursor = "pointer";
-        editBtn.style.marginLeft = "6px";
-        editBtn.title = translate("renameVersion");
-        editBtn.onclick = (e) => {
-          e.stopPropagation();
-          renderEditState();
+        const dotsBtn = nameRow.createEl("span", { text: "⋮" });
+        dotsBtn.style.cursor = "pointer";
+        dotsBtn.style.marginLeft = "6px";
+        dotsBtn.style.fontSize = "1.2em";
+        dotsBtn.style.lineHeight = "1";
+        dotsBtn.style.padding = "4px 6px";
+        dotsBtn.style.borderRadius = "4px";
+        dotsBtn.style.userSelect = "none";
+        dotsBtn.title = translate("moreActions");
+
+        const dropdown = document.createElement("div");
+        dropdown.style.position = "fixed";
+        dropdown.style.zIndex = "9999";
+        dropdown.style.backgroundColor = "var(--background-primary)";
+        dropdown.style.border = "1px solid var(--background-modifier-border)";
+        dropdown.style.borderRadius = "6px";
+        dropdown.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
+        dropdown.style.minWidth = "160px";
+        dropdown.style.padding = "4px 0";
+        dropdown.style.display = "none";
+
+        const addMenuItem = (text: string, onClick: () => void) => {
+          const menuItem = dropdown.createDiv({ text });
+          menuItem.style.padding = "6px 12px";
+          menuItem.style.cursor = "pointer";
+          menuItem.style.fontSize = "0.9em";
+          menuItem.style.whiteSpace = "nowrap";
+          menuItem.onmouseover = () => {
+            menuItem.style.backgroundColor = "var(--background-modifier-hover)";
+          };
+          menuItem.onmouseout = () => {
+            menuItem.style.backgroundColor = "transparent";
+          };
+          menuItem.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeDropdown();
+            onClick();
+          });
         };
+
+        const closeDropdown = () => {
+          dropdown.style.display = "none";
+          document.removeEventListener("mousedown", onOutsideMouseDown, true);
+        };
+
+        const onOutsideMouseDown = (e: MouseEvent) => {
+          if (!dropdown.contains(e.target as Node) && !dotsBtn.contains(e.target as Node)) {
+            closeDropdown();
+          }
+        };
+
+        const openDropdown = () => {
+          const rect = dotsBtn.getBoundingClientRect();
+          const vpW = window.innerWidth;
+          const vpH = window.innerHeight;
+          dropdown.style.display = "block";
+          const ddW = dropdown.offsetWidth;
+          const ddH = dropdown.offsetHeight;
+          let top = rect.bottom + 4;
+          let left = rect.left;
+          if (left + ddW > vpW - 8) left = vpW - ddW - 8;
+          if (left < 8) left = 8;
+          if (top + ddH > vpH - 8) top = rect.top - ddH - 4;
+          if (top < 8) top = 8;
+          dropdown.style.top = top + "px";
+          dropdown.style.left = left + "px";
+          document.addEventListener("mousedown", onOutsideMouseDown, true);
+        };
+
+        addMenuItem(translate("renameVersion"), () => renderEditState());
+
+        addMenuItem(translate("diffWithCurrent"), async () => {
+          const curFile = this.plugin.getActiveMarkdownFile();
+          if (!curFile) return;
+          const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
+          if (!snapContent) {
+            this.plugin.toast(translate("failedLoadSnapshot"));
+            return;
+          }
+          const currentContent = await this.plugin.app.vault.read(curFile);
+          const currentSnap: SnapshotRecord & { filePath: string } = {
+            timestamp: new Date().toISOString(),
+            reason: translate("currentFile"),
+            filePath: curFile.path,
+          };
+          new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
+        });
+
+        addMenuItem(translate("delete"), async () => {
+          closeDropdown();
+          showDeleteConfirm();
+        });
+
+        document.body.appendChild(dropdown);
+
+        dotsBtn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (dropdown.style.display === "block") {
+            closeDropdown();
+          } else {
+            openDropdown();
+          }
+        });
       }
 
       const timeRow = meta.createDiv();
@@ -623,6 +714,37 @@ export class SaveHistoryView extends ItemView {
     actions.style.display = "flex";
     actions.style.flexWrap = "wrap";
     actions.style.gap = "4px";
+
+    const showDeleteConfirm = () => {
+      actions.empty();
+      const confirmText = actions.createEl("span", { text: translate("deleteConfirm") });
+      confirmText.style.fontSize = "0.85em";
+      confirmText.style.color = "var(--text-error)";
+      confirmText.style.alignSelf = "center";
+
+      const yesBtn = actions.createEl("button", { text: translate("yes") });
+      yesBtn.style.flex = "1 1 50px";
+      yesBtn.style.backgroundColor = "var(--background-modifier-error)";
+      yesBtn.style.color = "white";
+      yesBtn.onclick = async (ev) => {
+        ev.stopPropagation();
+        const success = await deleteSnapshotFile(this.plugin, snap.filePath);
+        if (success) {
+          this.plugin.toast(translate("versionDeleted"));
+          this.refresh();
+        } else {
+          this.plugin.toast(translate("failedDeleteVersion"));
+          this.refresh();
+        }
+      };
+
+      const noBtn = actions.createEl("button", { text: translate("no") });
+      noBtn.style.flex = "1 1 50px";
+      noBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        this.refresh();
+      };
+    };
 
     const restoreBtn = actions.createEl("button", { text: translate("restore") });
     restoreBtn.style.flex = "1 1 70px";
@@ -735,67 +857,18 @@ export class SaveHistoryView extends ItemView {
       previewModal.open();
     };
 
-    const diffCurBtn = actions.createEl("button", { text: translate("diffWithCurrent") });
-    diffCurBtn.style.flex = "1 1 70px";
-    diffCurBtn.onclick = async () => {
-      const curFile = this.plugin.getActiveMarkdownFile();
-      if (!curFile) return;
-      const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
-      if (!snapContent) {
-        this.plugin.toast(translate("failedLoadSnapshot"));
-        return;
-      }
-      const currentContent = await this.plugin.app.vault.read(curFile);
-      const currentSnap: SnapshotRecord & { filePath: string } = {
-        timestamp: new Date().toISOString(),
-        reason: translate("currentFile"),
-        filePath: curFile.path,
-      };
-      new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
-    };
-
-    const deleteBtn = actions.createEl("button", { text: translate("delete") });
-    deleteBtn.style.flex = "1 1 70px";
-    deleteBtn.style.color = "var(--text-error)";
-    deleteBtn.onclick = async (e) => {
-      e.stopPropagation();
-      const curFile = this.plugin.getActiveMarkdownFile();
-      if (!curFile) return;
-      
-      actions.empty();
-      
-      const confirmText = actions.createEl("span", { text: translate("deleteConfirm") });
-      confirmText.style.fontSize = "0.85em";
-      confirmText.style.color = "var(--text-error)";
-      confirmText.style.alignSelf = "center";
-      
-      const yesBtn = actions.createEl("button", { text: translate("yes") });
-      yesBtn.style.flex = "1 1 50px";
-      yesBtn.style.backgroundColor = "var(--background-modifier-error)";
-      yesBtn.style.color = "white";
-      yesBtn.onclick = async (ev) => {
-        ev.stopPropagation();
-        const success = await deleteSnapshotFile(this.plugin, snap.filePath);
-        if (success) {
-          this.plugin.toast(translate("versionDeleted"));
-          this.refresh();
-        } else {
-          this.plugin.toast(translate("failedDeleteVersion"));
-          this.refresh();
-        }
-      };
-      
-      const noBtn = actions.createEl("button", { text: translate("no") });
-      noBtn.style.flex = "1 1 50px";
-      noBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        this.refresh();
-      };
-    };
   }
 
   async refresh() {
     await this.onOpen();
+  }
+
+  async onClose() {
+    this.cleanupDropdowns();
+  }
+
+  private cleanupDropdowns() {
+    document.querySelectorAll("div[style*=\"z-index: 9999\"]").forEach(el => el.remove());
   }
 }
 

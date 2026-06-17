@@ -41,6 +41,7 @@ type TranslationKeys = {
   // Snapshot item
   restore: string;
   preview: string;
+  moreActions: string;
   delete: string;
   deleteConfirm: string;
   yes: string;
@@ -134,6 +135,7 @@ const en: TranslationKeys = {
 
   restore: "Restore",
   preview: "Preview",
+  moreActions: "More actions",
   delete: "Delete",
   deleteConfirm: "Delete?",
   yes: "Yes",
@@ -221,6 +223,7 @@ const ru: TranslationKeys = {
 
   restore: "Восстановить",
   preview: "Просмотр",
+  moreActions: "Ещё действия",
   delete: "Удалить",
   deleteConfirm: "Удалить?",
   yes: "Да",
