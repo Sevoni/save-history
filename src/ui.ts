@@ -3,7 +3,8 @@ import { SaveHistoryPlugin, type GroupByMode } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup } from "./storage";
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
-import { t } from "./i18n";
+import { translate } from "./locale";
+import { VIEW_TYPE_SAVE_HISTORY } from "./views";
 
 async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: string, sourcePath: string): Promise<string> {
   const adapter = plugin.app.vault.adapter;
@@ -47,20 +48,18 @@ async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: stri
   return result;
 }
 
-export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
-
 export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
   plugin.addCommand?.({
     id: "save-history:save-now",
-    name: t("cmdSaveNow"),
+    name: translate("cmdSaveNow"),
     callback: async () => {
       const file = plugin.getActiveMarkdownFile();
       if (!file) {
-        plugin.toast(t("noFileOpenSave"));
+        plugin.toast(translate("noFileOpenSave"));
         return;
       }
       await versioning.saveNowForFile(file, "manual");
-      plugin.toast(t("versionSaved"));
+      plugin.toast(translate("versionSaved"));
       
       // Refresh active view if open
       const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
@@ -74,11 +73,11 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
 
   plugin.addCommand?.({
     id: "save-history:restore",
-    name: t("cmdRestore"),
+    name: translate("cmdRestore"),
     callback: async () => {
       const file = plugin.getActiveMarkdownFile();
       if (!file) {
-        plugin.toast(t("noFileOpenRestore"));
+        plugin.toast(translate("noFileOpenRestore"));
         return;
       }
       new RestoreVersionModal(plugin, file, versioning).open();
@@ -87,7 +86,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
 
   plugin.addCommand?.({
     id: "save-history:open-sidebar",
-    name: t("cmdOpenSidebar"),
+    name: translate("cmdOpenSidebar"),
     callback: async () => {
       let leaf = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY)[0];
       if (!leaf) {
@@ -130,7 +129,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   getDisplayText(): string {
-    return t("viewTitle");
+    return translate("viewTitle");
   }
 
   getIcon(): string {
@@ -154,7 +153,7 @@ export class SaveHistoryView extends ItemView {
     headerRow.style.justifyContent = "space-between";
     headerRow.style.margin = "0 0 8px 0";
 
-    const header = headerRow.createEl("h3", { text: t("viewTitle") });
+    const header = headerRow.createEl("h3", { text: translate("viewTitle") });
     header.style.margin = "0";
 
     const groupSelect = headerRow.createEl("select");
@@ -162,11 +161,11 @@ export class SaveHistoryView extends ItemView {
     groupSelect.style.padding = "2px 4px";
     groupSelect.style.marginLeft = "8px";
     const opts: { value: GroupByMode; label: string }[] = [
-      { value: "none", label: t("groupNone") },
-      { value: "day", label: t("groupDay") },
-      { value: "week", label: t("groupWeek") },
-      { value: "month", label: t("groupMonth") },
-      { value: "year", label: t("groupYear") },
+      { value: "none", label: translate("groupNone") },
+      { value: "day", label: translate("groupDay") },
+      { value: "week", label: translate("groupWeek") },
+      { value: "month", label: translate("groupMonth") },
+      { value: "year", label: translate("groupYear") },
     ];
     for (const o of opts) {
       const opt = groupSelect.createEl("option", { text: o.label });
@@ -183,7 +182,7 @@ export class SaveHistoryView extends ItemView {
 
     const activeFile = this.plugin.getActiveMarkdownFile();
     if (!activeFile) {
-      wrapper.createDiv({ text: t("noActiveFile"), cls: "nav-header" });
+      wrapper.createDiv({ text: translate("noActiveFile"), cls: "nav-header" });
       return;
     }
 
@@ -191,15 +190,15 @@ export class SaveHistoryView extends ItemView {
     fileLabel.style.fontSize = "0.85em";
     fileLabel.style.color = "var(--text-muted)";
     fileLabel.style.marginBottom = "8px";
-    fileLabel.textContent = t("fileLabel", { name: activeFile.name });
+    fileLabel.textContent = translate("fileLabel", { name: activeFile.name });
 
-    const saveBtn = wrapper.createEl("button", { text: t("saveVersionNow") });
+    const saveBtn = wrapper.createEl("button", { text: translate("saveVersionNow") });
     saveBtn.style.width = "100%";
     saveBtn.onclick = async () => {
       const curFile = this.plugin.getActiveMarkdownFile();
       if (!curFile) return;
       await this.versioning.saveNowForFile(curFile, "manual");
-      this.plugin.toast(t("versionSaved"));
+      this.plugin.toast(translate("versionSaved"));
       this.refresh();
     };
 
@@ -207,7 +206,7 @@ export class SaveHistoryView extends ItemView {
     diffBtnRow.style.display = "flex";
     diffBtnRow.style.gap = "6px";
 
-    const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? t("cancelDiff") : t("diffTwoVersions") });
+    const diffToggleBtn = diffBtnRow.createEl("button", { text: this.diffMode ? translate("cancelDiff") : translate("diffTwoVersions") });
     diffToggleBtn.style.flex = "1";
     diffToggleBtn.onclick = () => {
       this.diffMode = !this.diffMode;
@@ -216,14 +215,14 @@ export class SaveHistoryView extends ItemView {
     };
 
     if (this.diffMode && this.diffSelection.length === 2) {
-      const diffGoBtn = diffBtnRow.createEl("button", { text: t("showDiff") });
+      const diffGoBtn = diffBtnRow.createEl("button", { text: translate("showDiff") });
       diffGoBtn.style.flex = "1";
       diffGoBtn.style.fontWeight = "600";
       diffGoBtn.onclick = async () => {
         const recOld = await readSnapshotContent(this.plugin, this.diffSelection[1].filePath);
         const recNew = await readSnapshotContent(this.plugin, this.diffSelection[0].filePath);
         if (!recOld || !recNew) {
-          this.plugin.toast(t("failedLoadSnapshotContent"));
+          this.plugin.toast(translate("failedLoadSnapshotContent"));
           return;
         }
         new DiffModal(this.plugin, this.diffSelection[1], this.diffSelection[0], recOld.content, recNew.content).open();
@@ -234,7 +233,7 @@ export class SaveHistoryView extends ItemView {
     }
 
     if (this.diffMode && this.diffSelection.length > 0) {
-      const diffClearBtn = diffBtnRow.createEl("button", { text: t("clear") });
+      const diffClearBtn = diffBtnRow.createEl("button", { text: translate("clear") });
       diffClearBtn.onclick = () => {
         this.diffSelection = [];
         this.refresh();
@@ -251,7 +250,7 @@ export class SaveHistoryView extends ItemView {
     const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
 
     if (snapshots.length === 0) {
-      listContainer.createDiv({ text: t("noSavedVersions") });
+      listContainer.createDiv({ text: translate("noSavedVersions") });
     } else {
       const groupBy = this.plugin.settings.groupBy;
 
@@ -329,7 +328,7 @@ export class SaveHistoryView extends ItemView {
       divider.style.margin = "16px 0 8px 0";
       divider.style.borderTop = "1px dashed var(--background-modifier-border)";
 
-      const backupHeader = wrapper.createEl("h4", { text: t("lastUnsavedVersion") });
+      const backupHeader = wrapper.createEl("h4", { text: translate("lastUnsavedVersion") });
       backupHeader.style.margin = "0 0 8px 0";
       backupHeader.style.color = "var(--text-accent)";
 
@@ -345,14 +344,14 @@ export class SaveHistoryView extends ItemView {
       const meta = backupItem.createDiv();
       meta.style.fontSize = "0.85em";
       const date = new Date(preRestoreBackup.timestamp);
-      meta.textContent = t("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
+      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
 
       const actions = backupItem.createDiv();
       actions.style.display = "flex";
       actions.style.flexWrap = "wrap";
       actions.style.gap = "4px";
 
-      const restoreBtn = actions.createEl("button", { text: t("restoreBackup") });
+      const restoreBtn = actions.createEl("button", { text: translate("restoreBackup") });
       restoreBtn.style.flex = "1 1 100px";
       restoreBtn.onclick = async () => {
         const curFile = this.plugin.getActiveMarkdownFile();
@@ -360,7 +359,7 @@ export class SaveHistoryView extends ItemView {
 
         const restored = await readSnapshotContent(this.plugin, preRestoreBackup.filePath);
         if (!restored) {
-          this.plugin.toast(t("failedLoadBackup"));
+          this.plugin.toast(translate("failedLoadBackup"));
           return;
         }
         
@@ -368,11 +367,11 @@ export class SaveHistoryView extends ItemView {
         await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
 
         await this.versioning.restoreFromSnapshot(curFile, restored);
-        this.plugin.toast(t("backupRestored"));
+        this.plugin.toast(translate("backupRestored"));
         this.refresh();
       };
 
-      const deleteBtn = actions.createEl("button", { text: t("delete") });
+      const deleteBtn = actions.createEl("button", { text: translate("delete") });
       deleteBtn.style.flex = "1 1 70px";
       deleteBtn.style.color = "var(--text-error)";
       deleteBtn.onclick = async (e) => {
@@ -382,12 +381,12 @@ export class SaveHistoryView extends ItemView {
         
         actions.empty();
         
-        const confirmText = actions.createEl("span", { text: t("deleteBackup") });
+        const confirmText = actions.createEl("span", { text: translate("deleteBackup") });
         confirmText.style.fontSize = "0.85em";
         confirmText.style.color = "var(--text-error)";
         confirmText.style.alignSelf = "center";
         
-        const yesBtn = actions.createEl("button", { text: t("yes") });
+        const yesBtn = actions.createEl("button", { text: translate("yes") });
         yesBtn.style.flex = "1 1 50px";
         yesBtn.style.backgroundColor = "var(--background-modifier-error)";
         yesBtn.style.color = "white";
@@ -395,15 +394,15 @@ export class SaveHistoryView extends ItemView {
           ev.stopPropagation();
           const success = await deleteSnapshotFile(this.plugin, preRestoreBackup.filePath);
           if (success) {
-            this.plugin.toast(t("backupDeleted"));
+            this.plugin.toast(translate("backupDeleted"));
             this.refresh();
           } else {
-            this.plugin.toast(t("failedDeleteBackup"));
+            this.plugin.toast(translate("failedDeleteBackup"));
             this.refresh();
           }
         };
         
-        const noBtn = actions.createEl("button", { text: t("no") });
+        const noBtn = actions.createEl("button", { text: translate("no") });
         noBtn.style.flex = "1 1 50px";
         noBtn.onclick = (ev) => {
           ev.stopPropagation();
@@ -499,8 +498,8 @@ export class SaveHistoryView extends ItemView {
       let selectionLabel: string | null = null;
       if (this.diffMode) {
         const idx = this.diffSelection.findIndex(s => s.filePath === snap.filePath);
-        if (idx === 0) selectionLabel = t("diffNewer");
-        else if (idx === 1) selectionLabel = t("diffOlder");
+        if (idx === 0) selectionLabel = translate("diffNewer");
+        else if (idx === 1) selectionLabel = translate("diffOlder");
       }
 
       const label = nameRow.createEl("span");
@@ -517,7 +516,7 @@ export class SaveHistoryView extends ItemView {
         const editBtn = nameRow.createEl("span", { text: "✏️" });
         editBtn.style.cursor = "pointer";
         editBtn.style.marginLeft = "6px";
-        editBtn.title = t("renameVersion");
+        editBtn.title = translate("renameVersion");
         editBtn.onclick = (e) => {
           e.stopPropagation();
           renderEditState();
@@ -552,10 +551,10 @@ export class SaveHistoryView extends ItemView {
         if (val === "") return;
         const success = await updateSnapshotLabel(this.plugin, snap.filePath, val);
         if (success) {
-          this.plugin.toast(t("labelUpdated"));
+          this.plugin.toast(translate("labelUpdated"));
           this.refresh();
         } else {
-          this.plugin.toast(t("failedUpdateLabel"));
+          this.plugin.toast(translate("failedUpdateLabel"));
           renderNormalState();
         }
       };
@@ -576,7 +575,7 @@ export class SaveHistoryView extends ItemView {
 
       const okBtn = controls.createEl("span", { text: "\u2714\ufe0f" });
       okBtn.style.cursor = "pointer";
-      okBtn.title = t("save");
+      okBtn.title = translate("save");
       okBtn.onclick = async (ev) => {
         ev.stopPropagation();
         await saveLabel();
@@ -584,7 +583,7 @@ export class SaveHistoryView extends ItemView {
 
       const cancelBtn = controls.createEl("span", { text: "\u274c" });
       cancelBtn.style.cursor = "pointer";
-      cancelBtn.title = t("cancel");
+      cancelBtn.title = translate("cancel");
       cancelBtn.onclick = (ev) => {
         ev.stopPropagation();
         renderNormalState();
@@ -598,10 +597,10 @@ export class SaveHistoryView extends ItemView {
     if (this.diffMode) {
       const diffSelectBtn = item.createEl("button", {
         text: isSelected
-          ? t("deselect")
+          ? translate("deselect")
           : this.diffSelection.length < 2
-          ? t("selectForDiff")
-          : t("replaceSelection")
+          ? translate("selectForDiff")
+          : translate("replaceSelection")
       });
       diffSelectBtn.style.width = "100%";
       diffSelectBtn.style.fontSize = "0.85em";
@@ -624,7 +623,7 @@ export class SaveHistoryView extends ItemView {
     actions.style.flexWrap = "wrap";
     actions.style.gap = "4px";
 
-    const restoreBtn = actions.createEl("button", { text: t("restore") });
+    const restoreBtn = actions.createEl("button", { text: translate("restore") });
     restoreBtn.style.flex = "1 1 70px";
     restoreBtn.onclick = async () => {
       const curFile = this.plugin.getActiveMarkdownFile();
@@ -635,15 +634,15 @@ export class SaveHistoryView extends ItemView {
 
       const restored = await readSnapshotContent(this.plugin, snap.filePath);
       if (!restored) {
-        this.plugin.toast(t("failedLoadSnapshotDot"));
+        this.plugin.toast(translate("failedLoadSnapshotDot"));
         return;
       }
       await this.versioning.restoreFromSnapshot(curFile, restored);
-      this.plugin.toast(t("versionRestored"));
+      this.plugin.toast(translate("versionRestored"));
       this.refresh();
     };
 
-    const previewBtn = actions.createEl("button", { text: t("preview") });
+    const previewBtn = actions.createEl("button", { text: translate("preview") });
     previewBtn.style.flex = "1 1 70px";
     previewBtn.onclick = async () => {
       const curFile = this.plugin.getActiveMarkdownFile();
@@ -713,18 +712,18 @@ export class SaveHistoryView extends ItemView {
         btnRow.style.gap = "8px";
         btnRow.style.flexShrink = "0";
         
-        const rst = btnRow.createEl("button", { text: t("restoreThisVersion") });
+        const rst = btnRow.createEl("button", { text: translate("restoreThisVersion") });
         rst.onclick = async () => {
           const currentContent = await this.plugin.app.vault.read(curFile);
           await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
 
           await this.versioning.restoreFromSnapshot(curFile, restored);
-      this.plugin.toast(t("versionRestored"));
+      this.plugin.toast(translate("versionRestored"));
           previewModal.close();
           this.refresh();
         };
         
-        const cls = btnRow.createEl("button", { text: t("close") });
+        const cls = btnRow.createEl("button", { text: translate("close") });
         cls.onclick = () => previewModal.close();
 
         if (modalContainer) {
@@ -735,26 +734,26 @@ export class SaveHistoryView extends ItemView {
       previewModal.open();
     };
 
-    const diffCurBtn = actions.createEl("button", { text: t("diffWithCurrent") });
+    const diffCurBtn = actions.createEl("button", { text: translate("diffWithCurrent") });
     diffCurBtn.style.flex = "1 1 70px";
     diffCurBtn.onclick = async () => {
       const curFile = this.plugin.getActiveMarkdownFile();
       if (!curFile) return;
       const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
       if (!snapContent) {
-        this.plugin.toast(t("failedLoadSnapshot"));
+        this.plugin.toast(translate("failedLoadSnapshot"));
         return;
       }
       const currentContent = await this.plugin.app.vault.read(curFile);
       const currentSnap: SnapshotRecord & { filePath: string } = {
         timestamp: new Date().toISOString(),
-        reason: t("currentFile"),
+        reason: translate("currentFile"),
         filePath: curFile.path,
       };
       new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
     };
 
-    const deleteBtn = actions.createEl("button", { text: t("delete") });
+    const deleteBtn = actions.createEl("button", { text: translate("delete") });
     deleteBtn.style.flex = "1 1 70px";
     deleteBtn.style.color = "var(--text-error)";
     deleteBtn.onclick = async (e) => {
@@ -764,12 +763,12 @@ export class SaveHistoryView extends ItemView {
       
       actions.empty();
       
-      const confirmText = actions.createEl("span", { text: t("deleteConfirm") });
+      const confirmText = actions.createEl("span", { text: translate("deleteConfirm") });
       confirmText.style.fontSize = "0.85em";
       confirmText.style.color = "var(--text-error)";
       confirmText.style.alignSelf = "center";
       
-      const yesBtn = actions.createEl("button", { text: t("yes") });
+      const yesBtn = actions.createEl("button", { text: translate("yes") });
       yesBtn.style.flex = "1 1 50px";
       yesBtn.style.backgroundColor = "var(--background-modifier-error)";
       yesBtn.style.color = "white";
@@ -777,15 +776,15 @@ export class SaveHistoryView extends ItemView {
         ev.stopPropagation();
         const success = await deleteSnapshotFile(this.plugin, snap.filePath);
         if (success) {
-          this.plugin.toast(t("versionDeleted"));
+          this.plugin.toast(translate("versionDeleted"));
           this.refresh();
         } else {
-          this.plugin.toast(t("failedDeleteVersion"));
+          this.plugin.toast(translate("failedDeleteVersion"));
           this.refresh();
         }
       };
       
-      const noBtn = actions.createEl("button", { text: t("no") });
+      const noBtn = actions.createEl("button", { text: translate("no") });
       noBtn.style.flex = "1 1 50px";
       noBtn.onclick = (ev) => {
         ev.stopPropagation();
@@ -824,11 +823,11 @@ class RestoreVersionModal extends Modal {
     root.innerHTML = "";
 
     const title = document.createElement("h2");
-    title.textContent = t("restoreVersion");
+    title.textContent = translate("restoreVersion");
     root.appendChild(title);
 
     this.loadingEl = document.createElement("div");
-    this.loadingEl.textContent = t("loadingVersions");
+    this.loadingEl.textContent = translate("loadingVersions");
     root.appendChild(this.loadingEl);
 
     this.listEl = document.createElement("div");
@@ -837,7 +836,7 @@ class RestoreVersionModal extends Modal {
     await this.refresh();
 
     const closeBtn = document.createElement("button");
-    closeBtn.textContent = t("close");
+    closeBtn.textContent = translate("close");
     closeBtn.onclick = () => this.close();
     root.appendChild(closeBtn);
 
@@ -846,7 +845,7 @@ class RestoreVersionModal extends Modal {
   }
 
   private async refresh() {
-    this.loadingEl.textContent = t("loadingVersions");
+    this.loadingEl.textContent = translate("loadingVersions");
 
     this.snapshots = await listSnapshotsForFile(this.plugin, this.file.path);
 
@@ -854,7 +853,7 @@ class RestoreVersionModal extends Modal {
 
     if (!this.snapshots.length) {
       const empty = document.createElement("div");
-      empty.textContent = t("noSavedVersionsYet");
+      empty.textContent = translate("noSavedVersionsYet");
       this.listEl.appendChild(empty);
       this.loadingEl.textContent = "";
       return;
@@ -878,7 +877,7 @@ class RestoreVersionModal extends Modal {
 
       const nameLabel = document.createElement("span");
       nameLabel.style.fontWeight = "500";
-      nameLabel.textContent = snap.reason || t("unnamed");
+      nameLabel.textContent = snap.reason || translate("unnamed");
       meta.appendChild(nameLabel);
 
       const timeLabel = document.createElement("span");
@@ -891,7 +890,7 @@ class RestoreVersionModal extends Modal {
       row.appendChild(meta);
 
       const btn = document.createElement("button");
-      btn.textContent = t("restore");
+      btn.textContent = translate("restore");
       btn.onclick = async () => {
         await this.restoreSnapshot(snap);
       };
@@ -906,12 +905,12 @@ class RestoreVersionModal extends Modal {
   private async restoreSnapshot(snap: any) {
     const restored = await readSnapshotContent(this.plugin, snap.filePath);
     if (!restored) {
-      this.plugin.toast(t("failedLoadSnapshotDot"));
+      this.plugin.toast(translate("failedLoadSnapshotDot"));
       return;
     }
 
     await this.versioning.restoreFromSnapshot(this.file, restored);
-    this.plugin.toast(t("versionRestoredDot"));
+    this.plugin.toast(translate("versionRestoredDot"));
     this.close();
   }
 }
@@ -959,7 +958,7 @@ class DiffModal extends Modal {
     el.style.flex = "1";
     el.style.overflow = "hidden";
 
-    const titleEl = el.createEl("h2", { text: t("diff") });
+    const titleEl = el.createEl("h2", { text: translate("diff") });
     titleEl.style.marginBottom = "2px";
     titleEl.style.flexShrink = "0";
     titleEl.style.cursor = "move";
@@ -1006,12 +1005,12 @@ class DiffModal extends Modal {
     stats.style.marginBottom = "8px";
     stats.style.flexShrink = "0";
     if (added === 0 && removed === 0) {
-      stats.textContent = t("noDifferences");
+      stats.textContent = translate("noDifferences");
     } else {
-      const sAdd = stats.createEl("span", { text: t("added", { n: added }) });
+      const sAdd = stats.createEl("span", { text: translate("added", { n: added }) });
       sAdd.style.color = "#2ea043";
       stats.createEl("span", { text: "  " });
-      const sRem = stats.createEl("span", { text: t("removed", { n: removed }) });
+      const sRem = stats.createEl("span", { text: translate("removed", { n: removed }) });
       sRem.style.color = "#f85149";
     }
 
@@ -1118,7 +1117,7 @@ class DiffModal extends Modal {
           const hidden = eqRun.slice(COLLAPSE, eqRun.length - COLLAPSE);
           const bar = diffContainer.createDiv();
           bar.className = "sh-diff-collapse";
-              bar.textContent = t("unchangedLinesShow", { n: hidden.length });
+              bar.textContent = translate("unchangedLinesShow", { n: hidden.length });
           const hiddenEl = diffContainer.createDiv();
           hiddenEl.className = "sh-diff-hidden";
           for (const line of hidden) {
@@ -1129,10 +1128,10 @@ class DiffModal extends Modal {
             expanded = !expanded;
             if (expanded) {
               hiddenEl.classList.remove("sh-diff-hidden");
-              bar.textContent = t("unchangedLinesHide", { n: hidden.length });
+              bar.textContent = translate("unchangedLinesHide", { n: hidden.length });
             } else {
               hiddenEl.classList.add("sh-diff-hidden");
-          bar.textContent = t("unchangedLinesShow", { n: hidden.length });
+          bar.textContent = translate("unchangedLinesShow", { n: hidden.length });
             }
           };
           for (const line of eqRun.slice(eqRun.length - COLLAPSE)) {
@@ -1165,7 +1164,7 @@ class DiffModal extends Modal {
     btnRow.style.gap = "8px";
     btnRow.style.flexShrink = "0";
 
-    const closeBtn = btnRow.createEl("button", { text: t("close") });
+    const closeBtn = btnRow.createEl("button", { text: translate("close") });
     closeBtn.onclick = () => this.close();
 
     if (modalContainer) {

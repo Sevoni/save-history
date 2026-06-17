@@ -1,11 +1,10 @@
 {
-  "groupBy": "day",
+  "groupBy": "none",
   "collapsedGroups": {
     "2026": true,
     "2026-06-14": true,
     "2026-06": true,
-    "2026-06-16": true,
-    "2026-06-15": true
+    "2026-06-16": true
   },
   "language": "ru",
   "diffStyle": "side-by-side",

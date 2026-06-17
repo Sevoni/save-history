@@ -1,8 +1,9 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { setupVersioning } from "./versioning";
-import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
+import { registerCommands, SaveHistoryView } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
-import { setLanguage, type Language } from "./i18n";
+import { setLanguage, type Language } from "./locale";
+import { VIEW_TYPE_SAVE_HISTORY } from "./views";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 

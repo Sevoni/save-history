@@ -1,14 +1,14 @@
-import { PluginSettingTab } from "obsidian";
-import { SaveHistoryPlugin } from "./main";
-import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
-import { t, setLanguage, type Language } from "./i18n";
+import { PluginSettingTab, type Plugin } from "obsidian";
+import { SaveHistoryView } from "./ui";
+import { translate, setLanguage, type Language } from "./locale";
+import { VIEW_TYPE_SAVE_HISTORY } from "./views";
 
 export class SaveHistorySettingTab extends PluginSettingTab {
-	private plugin: SaveHistoryPlugin;
+	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void> };
 
-	constructor(app: any, plugin: SaveHistoryPlugin) {
+	constructor(app: any, plugin: Plugin) {
 		super(app, plugin);
-		this.plugin = plugin;
+		this.plugin = plugin as any;
 	}
 
 	display(): void {
@@ -18,13 +18,13 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		const wrapper = el.createDiv();
 		wrapper.style.padding = "12px";
 
-		const header = wrapper.createEl("h2", { text: t("settingsTitle") });
+		const header = wrapper.createEl("h2", { text: translate("settingsTitle") });
 		header.style.marginBottom = "16px";
 
 		// Language
-		wrapper.createDiv({ text: t("language"), cls: "setting-item-name" });
+		wrapper.createDiv({ text: translate("language"), cls: "setting-item-name" });
 		const langDesc = wrapper.createDiv({
-			text: t("languageDesc"),
+			text: translate("languageDesc"),
 			cls: "setting-item-description",
 		});
 		langDesc.style.fontSize = "0.85em";
@@ -50,9 +50,9 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		};
 
 		// Group by
-		wrapper.createDiv({ text: t("groupVersionsBy"), cls: "setting-item-name" });
+		wrapper.createDiv({ text: translate("groupVersionsBy"), cls: "setting-item-name" });
 		const groupDesc = wrapper.createDiv({
-			text: t("groupVersionsDesc"),
+			text: translate("groupVersionsDesc"),
 			cls: "setting-item-description",
 		});
 		groupDesc.style.fontSize = "0.85em";
@@ -63,15 +63,15 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		groupSelect.style.marginBottom = "16px";
 		groupSelect.style.padding = "4px 8px";
 		groupSelect.style.fontSize = "0.9em";
-		const noneOpt = groupSelect.createEl("option", { text: t("groupNone") });
+		const noneOpt = groupSelect.createEl("option", { text: translate("groupNone") });
 		noneOpt.value = "none";
-		const dayOpt = groupSelect.createEl("option", { text: t("groupDay") });
+		const dayOpt = groupSelect.createEl("option", { text: translate("groupDay") });
 		dayOpt.value = "day";
-		const weekOpt = groupSelect.createEl("option", { text: t("groupWeek") });
+		const weekOpt = groupSelect.createEl("option", { text: translate("groupWeek") });
 		weekOpt.value = "week";
-		const monthOpt = groupSelect.createEl("option", { text: t("groupMonth") });
+		const monthOpt = groupSelect.createEl("option", { text: translate("groupMonth") });
 		monthOpt.value = "month";
-		const yearOpt = groupSelect.createEl("option", { text: t("groupYear") });
+		const yearOpt = groupSelect.createEl("option", { text: translate("groupYear") });
 		yearOpt.value = "year";
 		groupSelect.value = this.plugin.settings.groupBy;
 		groupSelect.onchange = async () => {

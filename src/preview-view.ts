@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer } from "obsidian";
 import { SaveHistoryPlugin } from "./main";
-import { t } from "./i18n";
+import { translate } from "./locale";
 
 export const VIEW_TYPE_SAVE_HISTORY_PREVIEW = "save-history-preview-view";
 
@@ -26,7 +26,7 @@ export class SaveHistoryPreviewView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return this.label || t("versionPreview");
+		return this.label || translate("versionPreview");
 	}
 
 	getIcon(): string {
@@ -51,7 +51,7 @@ export class SaveHistoryPreviewView extends ItemView {
 			const emptyEl = el.createDiv();
 			emptyEl.style.padding = "12px";
 			emptyEl.style.color = "var(--text-muted)";
-			emptyEl.textContent = t("noPreviewLoaded");
+			emptyEl.textContent = translate("noPreviewLoaded");
 			return;
 		}
 
