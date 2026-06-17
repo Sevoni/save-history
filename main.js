@@ -21,16 +21,19 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/storage.ts
-function getSnapshotDirPath(vaultRelativePath) {
-  const normalized = vaultRelativePath.replace(/^\/+/, "");
-  return `${SNAPSHOT_ROOT}/${normalized}`;
+function getSnapshotRoot(plugin) {
+  return plugin.settings.snapshotFolder || LEGACY_SNAPSHOT_ROOT;
 }
-function getSnapshotFilePath(vaultRelativePath, timestamp) {
+function getSnapshotDirPath(plugin, vaultRelativePath) {
+  const normalized = vaultRelativePath.replace(/^\/+/, "");
+  return `${getSnapshotRoot(plugin)}/${normalized}`;
+}
+function getSnapshotFilePath(plugin, vaultRelativePath, timestamp) {
   const safeTimestamp = timestamp.replace(/:/g, "-");
-  return `${getSnapshotDirPath(vaultRelativePath)}/${safeTimestamp}.json`;
+  return `${getSnapshotDirPath(plugin, vaultRelativePath)}/${safeTimestamp}.json`;
 }
 async function ensureSnapshotDir(plugin, vaultRelativePath) {
-  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
   const adapter = plugin.app.vault.adapter;
   const parts = dirPath.split("/");
   let currentPath = "";
@@ -48,12 +51,12 @@ async function ensureSnapshotDir(plugin, vaultRelativePath) {
 async function saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, reason) {
   await ensureSnapshotDir(plugin, vaultRelativePath);
   const record = { path: vaultRelativePath, timestamp, content, reason };
-  const filePath = getSnapshotFilePath(vaultRelativePath, timestamp);
+  const filePath = getSnapshotFilePath(plugin, vaultRelativePath, timestamp);
   const adapter = plugin.app.vault.adapter;
   await adapter.write(filePath, JSON.stringify(record, null, 2));
 }
 async function listSnapshotsForFile(plugin, vaultRelativePath) {
-  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
   const adapter = plugin.app.vault.adapter;
   if (!await adapter.exists(dirPath)) {
     return [];
@@ -123,7 +126,7 @@ async function updateSnapshotLabel(plugin, filePath, newLabel) {
   return false;
 }
 async function savePreRestoreBackup(plugin, vaultRelativePath, content) {
-  const dirPath = getSnapshotDirPath(vaultRelativePath);
+  const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
   const adapter = plugin.app.vault.adapter;
   if (await adapter.exists(dirPath)) {
     try {
@@ -148,11 +151,21 @@ async function savePreRestoreBackup(plugin, vaultRelativePath, content) {
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
   await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
 }
-var SNAPSHOT_ROOT;
+async function renameSnapshotFolder(adapter, oldName, newName) {
+  if (oldName === newName) return true;
+  if (!await adapter.exists(oldName)) return true;
+  try {
+    await adapter.rename(oldName, newName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+var LEGACY_SNAPSHOT_ROOT;
 var init_storage = __esm({
   "src/storage.ts"() {
     "use strict";
-    SNAPSHOT_ROOT = ".versions(SH)";
+    LEGACY_SNAPSHOT_ROOT = ".versions(SH)";
   }
 });
 
@@ -347,6 +360,10 @@ var init_locale = __esm({
       languageDesc: "Interface language for the plugin.",
       groupVersionsBy: "Group versions by",
       groupVersionsDesc: "Group saved versions in the sidebar by time period.",
+      snapshotFolder: "Snapshot folder",
+      snapshotFolderDesc: `Folder in the vault root where versions are stored. Start with "." to hide it from Obsidian's file explorer.`,
+      snapshotFolderRenamed: "Folder renamed successfully.",
+      snapshotFolderRenameFailed: "Failed to rename folder.",
       versionPreview: "Version Preview",
       noPreviewLoaded: "No preview loaded."
     };
@@ -426,6 +443,10 @@ var init_locale = __esm({
       languageDesc: "\u042F\u0437\u044B\u043A \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u043F\u043B\u0430\u0433\u0438\u043D\u0430.",
       groupVersionsBy: "\u0413\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0430 \u0432\u0435\u0440\u0441\u0438\u0439",
       groupVersionsDesc: "\u0413\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u0438 \u0432 \u0431\u043E\u043A\u043E\u0432\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438 \u043F\u043E \u043F\u0435\u0440\u0438\u043E\u0434\u0430\u043C.",
+      snapshotFolder: "\u041F\u0430\u043F\u043A\u0430 \u0441\u043D\u0438\u043C\u043A\u043E\u0432",
+      snapshotFolderDesc: '\u041F\u0430\u043F\u043A\u0430 \u0432 \u043A\u043E\u0440\u043D\u0435 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430, \u0433\u0434\u0435 \u0445\u0440\u0430\u043D\u044F\u0442\u0441\u044F \u0432\u0435\u0440\u0441\u0438\u0438. \u041D\u0430\u0447\u043D\u0438\u0442\u0435 \u0441 ".", \u0447\u0442\u043E\u0431\u044B \u0441\u043A\u0440\u044B\u0442\u044C \u0435\u0451 \u0438\u0437 \u043F\u0440\u043E\u0432\u043E\u0434\u043D\u0438\u043A\u0430 Obsidian.',
+      snapshotFolderRenamed: "\u041F\u0430\u043F\u043A\u0430 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u0430.",
+      snapshotFolderRenameFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443.",
       versionPreview: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0432\u0435\u0440\u0441\u0438\u0438",
       noPreviewLoaded: "\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D."
     };
@@ -1641,6 +1662,7 @@ var init_settings = __esm({
     import_obsidian2 = require("obsidian");
     init_ui();
     init_locale();
+    init_storage();
     SaveHistorySettingTab = class extends import_obsidian2.PluginSettingTab {
       constructor(app, plugin) {
         super(app, plugin);
@@ -1706,6 +1728,42 @@ var init_settings = __esm({
           await this.plugin.saveSettings();
           this.refreshSidebarViews();
         };
+        wrapper.createDiv({ text: translate("snapshotFolder"), cls: "setting-item-name" });
+        const folderDesc = wrapper.createDiv({
+          text: translate("snapshotFolderDesc"),
+          cls: "setting-item-description"
+        });
+        folderDesc.style.fontSize = "0.85em";
+        folderDesc.style.color = "var(--text-muted)";
+        folderDesc.style.marginBottom = "6px";
+        const folderRow = wrapper.createDiv();
+        folderRow.style.display = "flex";
+        folderRow.style.gap = "8px";
+        folderRow.style.alignItems = "center";
+        folderRow.style.marginBottom = "16px";
+        const folderInput = folderRow.createEl("input");
+        folderInput.type = "text";
+        folderInput.value = this.plugin.settings.snapshotFolder;
+        folderInput.style.flex = "1";
+        folderInput.style.padding = "4px 8px";
+        folderInput.style.fontSize = "0.9em";
+        const folderSaveBtn = folderRow.createEl("button", { text: translate("save") });
+        folderSaveBtn.style.flexShrink = "0";
+        folderSaveBtn.onclick = async () => {
+          const newName = folderInput.value.trim();
+          if (!newName) return;
+          if (newName === this.plugin.settings.snapshotFolder) return;
+          const oldName = this.plugin.settings.snapshotFolder;
+          const success = await renameSnapshotFolder(this.plugin.app.vault.adapter, oldName, newName);
+          if (success) {
+            this.plugin.settings.snapshotFolder = newName;
+            await this.plugin.saveSettings();
+            this.plugin.toast(translate("snapshotFolderRenamed"));
+            this.refreshSidebarViews();
+          } else {
+            this.plugin.toast(translate("snapshotFolderRenameFailed"));
+          }
+        };
       }
       refreshSidebarViews() {
         const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
@@ -1732,7 +1790,8 @@ var init_main = __esm({
     DEFAULT_SETTINGS = {
       groupBy: "day",
       collapsedGroups: {},
-      language: "en"
+      language: "en",
+      snapshotFolder: ".versions(SH)"
     };
     SaveHistoryPlugin = class extends import_obsidian3.Plugin {
       constructor() {

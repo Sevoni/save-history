@@ -95,6 +95,10 @@ type TranslationKeys = {
   languageDesc: string;
   groupVersionsBy: string;
   groupVersionsDesc: string;
+  snapshotFolder: string;
+  snapshotFolderDesc: string;
+  snapshotFolderRenamed: string;
+  snapshotFolderRenameFailed: string;
 
   // Preview view
   versionPreview: string;
@@ -186,6 +190,10 @@ const en: TranslationKeys = {
   languageDesc: "Interface language for the plugin.",
   groupVersionsBy: "Group versions by",
   groupVersionsDesc: "Group saved versions in the sidebar by time period.",
+  snapshotFolder: "Snapshot folder",
+  snapshotFolderDesc: "Folder in the vault root where versions are stored. Start with \".\" to hide it from Obsidian's file explorer.",
+  snapshotFolderRenamed: "Folder renamed successfully.",
+  snapshotFolderRenameFailed: "Failed to rename folder.",
 
   versionPreview: "Version Preview",
   noPreviewLoaded: "No preview loaded.",
@@ -276,6 +284,10 @@ const ru: TranslationKeys = {
   languageDesc: "Язык интерфейса плагина.",
   groupVersionsBy: "Группировка версий",
   groupVersionsDesc: "Группировать версии в боковой панели по периодам.",
+  snapshotFolder: "Папка снимков",
+  snapshotFolderDesc: "Папка в корне хранилища, где хранятся версии. Начните с \".\", чтобы скрыть её из проводника Obsidian.",
+  snapshotFolderRenamed: "Папка успешно переименована.",
+  snapshotFolderRenameFailed: "Не удалось переименовать папку.",
 
   versionPreview: "Просмотр версии",
   noPreviewLoaded: "Просмотр не загружен.",

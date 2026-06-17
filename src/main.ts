@@ -10,12 +10,14 @@ export interface SaveHistorySettings {
   groupBy: GroupByMode;
   collapsedGroups: Record<string, boolean>;
   language: Language;
+  snapshotFolder: string;
 }
 
 const DEFAULT_SETTINGS: SaveHistorySettings = {
   groupBy: "day",
   collapsedGroups: {},
   language: "en",
+  snapshotFolder: ".versions(SH)",
 };
 
 export class SaveHistoryPlugin extends Plugin {

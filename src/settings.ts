@@ -1,9 +1,10 @@
 import { PluginSettingTab, type Plugin } from "obsidian";
 import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { translate, setLanguage, type Language } from "./locale";
+import { renameSnapshotFolder } from "./storage";
 
 export class SaveHistorySettingTab extends PluginSettingTab {
-	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void> };
+	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void>; toast: (msg: string) => void };
 
 	constructor(app: any, plugin: Plugin) {
 		super(app, plugin);
@@ -77,6 +78,48 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			this.plugin.settings.groupBy = groupSelect.value as "none" | "day" | "week" | "month" | "year";
 			await this.plugin.saveSettings();
 			this.refreshSidebarViews();
+		};
+
+		// Snapshot folder
+		wrapper.createDiv({ text: translate("snapshotFolder"), cls: "setting-item-name" });
+		const folderDesc = wrapper.createDiv({
+			text: translate("snapshotFolderDesc"),
+			cls: "setting-item-description",
+		});
+		folderDesc.style.fontSize = "0.85em";
+		folderDesc.style.color = "var(--text-muted)";
+		folderDesc.style.marginBottom = "6px";
+
+		const folderRow = wrapper.createDiv();
+		folderRow.style.display = "flex";
+		folderRow.style.gap = "8px";
+		folderRow.style.alignItems = "center";
+		folderRow.style.marginBottom = "16px";
+
+		const folderInput = folderRow.createEl("input") as HTMLInputElement;
+		folderInput.type = "text";
+		folderInput.value = this.plugin.settings.snapshotFolder;
+		folderInput.style.flex = "1";
+		folderInput.style.padding = "4px 8px";
+		folderInput.style.fontSize = "0.9em";
+
+		const folderSaveBtn = folderRow.createEl("button", { text: translate("save") });
+		folderSaveBtn.style.flexShrink = "0";
+		folderSaveBtn.onclick = async () => {
+			const newName = folderInput.value.trim();
+			if (!newName) return;
+			if (newName === this.plugin.settings.snapshotFolder) return;
+
+			const oldName = this.plugin.settings.snapshotFolder;
+			const success = await renameSnapshotFolder(this.plugin.app.vault.adapter, oldName, newName);
+			if (success) {
+				this.plugin.settings.snapshotFolder = newName;
+				await this.plugin.saveSettings();
+				this.plugin.toast(translate("snapshotFolderRenamed"));
+				this.refreshSidebarViews();
+			} else {
+				this.plugin.toast(translate("snapshotFolderRenameFailed"));
+			}
 		};
 	}
 
