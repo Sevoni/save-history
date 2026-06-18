@@ -1,7 +1,7 @@
 {
   "id": "save history",
   "name": "Save History",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minAppVersion": "0.15.0",
   "description": "Saves and restores versions of markdown files.",
   "author": "Gugl",
