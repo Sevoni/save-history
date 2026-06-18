@@ -1,5 +1,7 @@
 # Save History
 
+[English version](README.md)
+
 Плагин для Obsidian для сохранения и восстановления версий markdown-файлов.
 
 ## Возможности

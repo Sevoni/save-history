@@ -1,5 +1,7 @@
 # Save History
 
+[Русская версия](README.ru.md)
+
 Obsidian plugin for saving and restoring markdown file versions.
 
 ## Features
