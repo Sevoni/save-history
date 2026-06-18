@@ -249,6 +249,39 @@ async function renameSnapshotFolder(adapter, oldName, newName) {
     return false;
   }
 }
+async function deleteSnapshotDirForFile(plugin, vaultRelativePath) {
+  const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
+  const adapter = plugin.app.vault.adapter;
+  if (!await adapter.exists(dirPath)) return;
+  let listResult;
+  try {
+    listResult = await adapter.list(dirPath);
+  } catch {
+    return;
+  }
+  for (const p of listResult.files || []) {
+    const fullPath = p.replace(/\\/g, "/");
+    const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+    try {
+      await adapter.remove(fullVaultPath);
+    } catch {
+    }
+  }
+  for (const p of listResult.folders || []) {
+    const fullPath = p.replace(/\\/g, "/");
+    const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+    try {
+      await adapter.rmdir(fullVaultPath);
+    } catch {
+    }
+  }
+  try {
+    await adapter.rmdir(dirPath);
+  } catch {
+  }
+  const parentDir = dirPath.substring(0, dirPath.lastIndexOf("/"));
+  await removeEmptyParentDirs(plugin, parentDir);
+}
 async function removeEmptyParentDirs(plugin, dirPath) {
   const snapshotRoot = getSnapshotRoot(plugin);
   let currentDir = dirPath.replace(/\\/g, "/");
@@ -1943,6 +1976,12 @@ var init_main = __esm({
             await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
             const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
             await removeEmptyParentDirs(this, parentDir);
+          })
+        );
+        this.registerEvent(
+          this.app.vault.on("delete", async (file) => {
+            if (!(file instanceof import_obsidian3.TFile) || file.extension !== "md") return;
+            await deleteSnapshotDirForFile(this, file.path);
           })
         );
       }

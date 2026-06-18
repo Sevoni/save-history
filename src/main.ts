@@ -3,7 +3,7 @@ import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs } from "./storage";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile } from "./storage";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
@@ -49,6 +49,13 @@ export class SaveHistoryPlugin extends Plugin {
 
         const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
         await removeEmptyParentDirs(this, parentDir);
+      })
+    );
+
+    this.registerEvent(
+      this.app.vault.on("delete", async (file) => {
+        if (!(file instanceof TFile) || file.extension !== "md") return;
+        await deleteSnapshotDirForFile(this, file.path);
       })
     );
   }

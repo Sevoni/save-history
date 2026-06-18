@@ -315,6 +315,52 @@ export async function renameSnapshotFolder(adapter: any, oldName: string, newNam
   }
 }
 
+export async function deleteSnapshotDirForFile(
+  plugin: SaveHistoryPlugin,
+  vaultRelativePath: string
+): Promise<void> {
+  const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
+  const adapter = plugin.app.vault.adapter;
+
+  if (!(await adapter.exists(dirPath))) return;
+
+  let listResult;
+  try {
+    listResult = await adapter.list(dirPath);
+  } catch {
+    return;
+  }
+
+  for (const p of listResult.files || []) {
+    const fullPath = p.replace(/\\/g, "/");
+    const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+    try {
+      await adapter.remove(fullVaultPath);
+    } catch {
+      // ignore
+    }
+  }
+
+  for (const p of listResult.folders || []) {
+    const fullPath = p.replace(/\\/g, "/");
+    const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
+    try {
+      await adapter.rmdir(fullVaultPath);
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    await adapter.rmdir(dirPath);
+  } catch {
+    // ignore
+  }
+
+  const parentDir = dirPath.substring(0, dirPath.lastIndexOf("/"));
+  await removeEmptyParentDirs(plugin, parentDir);
+}
+
 export async function removeEmptyParentDirs(plugin: SaveHistoryPlugin, dirPath: string) {
   const snapshotRoot = getSnapshotRoot(plugin);
   let currentDir = dirPath.replace(/\\/g, "/");
