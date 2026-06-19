@@ -181,6 +181,56 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			}
 		});
 		tabRow.appendChild(tabToggle);
+
+		// Max autosave versions
+		const maxLabel = wrapper.createDiv({ text: translate("maxAutosaveVersions"), cls: "setting-item-name" });
+		maxLabel.style.marginTop = "16px";
+		const maxDesc = wrapper.createDiv({
+			text: translate("maxAutosaveVersionsDesc"),
+			cls: "setting-item-description",
+		});
+		maxDesc.style.fontSize = "0.85em";
+		maxDesc.style.color = "var(--text-muted)";
+		maxDesc.style.marginBottom = "6px";
+
+		const maxInput = wrapper.createEl("input") as HTMLInputElement;
+		maxInput.type = "number";
+		maxInput.min = "0";
+		maxInput.value = String(this.plugin.settings.maxAutosaveVersions);
+		maxInput.style.padding = "4px 8px";
+		maxInput.style.fontSize = "0.9em";
+		maxInput.style.marginBottom = "16px";
+		maxInput.style.width = "80px";
+		maxInput.onchange = async () => {
+			const val = Math.max(0, Math.floor(Number(maxInput.value) || 0));
+			maxInput.value = String(val);
+			this.plugin.settings.maxAutosaveVersions = val;
+			await this.plugin.saveSettings();
+		};
+
+		// Allowed file extensions
+		const extLabel = wrapper.createDiv({ text: translate("allowedExtensions"), cls: "setting-item-name" });
+		extLabel.style.marginTop = "16px";
+		const extDesc = wrapper.createDiv({
+			text: translate("allowedExtensionsDesc"),
+			cls: "setting-item-description",
+		});
+		extDesc.style.fontSize = "0.85em";
+		extDesc.style.color = "var(--text-muted)";
+		extDesc.style.marginBottom = "6px";
+
+		const extInput = wrapper.createEl("input") as HTMLInputElement;
+		extInput.type = "text";
+		extInput.value = this.plugin.settings.allowedExtensions;
+		extInput.style.padding = "4px 8px";
+		extInput.style.fontSize = "0.9em";
+		extInput.style.marginBottom = "16px";
+		extInput.style.width = "300px";
+		extInput.placeholder = "md";
+		extInput.onchange = async () => {
+			this.plugin.settings.allowedExtensions = extInput.value.trim();
+			await this.plugin.saveSettings();
+		};
 	}
 
 	private createToggle(checked: boolean, onChange: (val: boolean) => void): HTMLElement {

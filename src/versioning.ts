@@ -4,7 +4,8 @@ import { saveSnapshotContent, listSnapshotsForFile, readSnapshotContent } from "
 
 export function setupVersioning(plugin: SaveHistoryPlugin) {
   async function saveNowForFile(file: TFile, reason: string): Promise<"saved" | "no_change"> {
-    if (!file || file.extension !== "md") return "no_change";
+    if (!file) return "no_change";
+    if (!plugin.isExtensionAllowed(file.extension)) return "no_change";
 
     const content = await plugin.app.vault.read(file);
     const vaultRelativePath = file.path;
@@ -26,7 +27,8 @@ export function setupVersioning(plugin: SaveHistoryPlugin) {
   }
 
   async function restoreFromSnapshot(file: TFile, snapshot: any) {
-    if (!file || file.extension !== "md") return;
+    if (!file) return;
+    if (!plugin.isExtensionAllowed(file.extension)) return;
     if (!snapshot?.content) return;
 
     await plugin.app.vault.modify(file, snapshot.content);

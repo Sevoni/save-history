@@ -54,7 +54,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
     id: "save-history:save-now",
     name: translate("cmdSaveNow"),
     callback: async () => {
-      const file = plugin.getActiveMarkdownFile();
+      const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenSave"));
         return;
@@ -76,7 +76,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
     id: "save-history:restore",
     name: translate("cmdRestore"),
     callback: async () => {
-      const file = plugin.getActiveMarkdownFile();
+      const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenRestore"));
         return;
@@ -110,7 +110,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
     id: "save-history:restore-last-backup",
     name: translate("cmdRestoreLastBackup"),
     callback: async () => {
-      const file = plugin.getActiveMarkdownFile();
+      const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenRestore"));
         return;
@@ -216,7 +216,7 @@ export class SaveHistoryView extends ItemView {
       this.refresh();
     };
 
-    const activeFile = this.plugin.getActiveMarkdownFile();
+    const activeFile = this.plugin.getActiveFile();
     if (!activeFile) {
       wrapper.createDiv({ text: translate("noActiveFile"), cls: "nav-header" });
       return;
@@ -231,7 +231,7 @@ export class SaveHistoryView extends ItemView {
     const saveBtn = wrapper.createEl("button", { text: translate("saveVersionNow") });
     saveBtn.style.width = "100%";
     saveBtn.onclick = async () => {
-      const curFile = this.plugin.getActiveMarkdownFile();
+      const curFile = this.plugin.getActiveFile();
       if (!curFile) return;
       const result = await this.versioning.saveNowForFile(curFile, "manual");
       this.plugin.toast(result === "saved" ? translate("versionSaved") : translate("noChangesDetected"));
@@ -383,7 +383,7 @@ export class SaveHistoryView extends ItemView {
       const restoreBtn = actions.createEl("button", { text: translate("restoreBackup") });
       restoreBtn.style.flex = "1 1 100px";
       restoreBtn.onclick = async () => {
-        const curFile = this.plugin.getActiveMarkdownFile();
+        const curFile = this.plugin.getActiveFile();
         if (!curFile) return;
 
         const restored = await readSnapshotContent(this.plugin, preRestoreBackup.filePath);
@@ -405,7 +405,7 @@ export class SaveHistoryView extends ItemView {
       deleteBtn.style.color = "var(--text-error)";
       deleteBtn.onclick = async (e) => {
         e.stopPropagation();
-        const curFile = this.plugin.getActiveMarkdownFile();
+        const curFile = this.plugin.getActiveFile();
         if (!curFile) return;
         
         actions.empty();
@@ -616,7 +616,7 @@ export class SaveHistoryView extends ItemView {
         addMenuItem(translate("renameVersion"), () => renderEditState());
 
         addMenuItem(translate("diffWithCurrent"), async () => {
-          const curFile = this.plugin.getActiveMarkdownFile();
+          const curFile = this.plugin.getActiveFile();
           if (!curFile) return;
           const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
           if (!snapContent) {
@@ -784,7 +784,7 @@ export class SaveHistoryView extends ItemView {
     const restoreBtn = actions.createEl("button", { text: translate("restore") });
     restoreBtn.style.flex = "1 1 70px";
     restoreBtn.onclick = async () => {
-      const curFile = this.plugin.getActiveMarkdownFile();
+      const curFile = this.plugin.getActiveFile();
       if (!curFile) return;
 
       const currentContent = await this.plugin.app.vault.read(curFile);
@@ -803,7 +803,7 @@ export class SaveHistoryView extends ItemView {
     const previewBtn = actions.createEl("button", { text: translate("preview") });
     previewBtn.style.flex = "1 1 70px";
     previewBtn.onclick = async () => {
-      const curFile = this.plugin.getActiveMarkdownFile();
+      const curFile = this.plugin.getActiveFile();
       if (!curFile) return;
       const restored = await readSnapshotContent(this.plugin, snap.filePath);
       if (!restored) return;
@@ -863,7 +863,17 @@ export class SaveHistoryView extends ItemView {
         content.classList.add("sh-preview-content");
 
         const resolvedContent = await resolveImagesInMarkdown(this.plugin, restored.content, curFile.path);
-        await MarkdownRenderer.render(this.plugin.app, resolvedContent, content, curFile.path, this.plugin);
+        if (curFile.extension === "md") {
+          await MarkdownRenderer.render(this.plugin.app, resolvedContent, content, curFile.path, this.plugin);
+        } else {
+          const pre = content.createEl("pre");
+          pre.style.margin = "0";
+          pre.style.whiteSpace = "pre-wrap";
+          pre.style.wordBreak = "break-word";
+          pre.style.fontFamily = "var(--font-monospace)";
+          pre.style.fontSize = "0.9em";
+          pre.textContent = resolvedContent;
+        }
         
         const btnRow = el.createDiv();
         btnRow.style.marginTop = "12px";
@@ -1212,7 +1222,7 @@ class DiffModal extends Modal {
       document.head.appendChild(style);
     }
 
-    const curFile = this.plugin.getActiveMarkdownFile();
+    const curFile = this.plugin.getActiveFile();
     const sourcePath = curFile?.path ?? "";
     const app = this.plugin.app;
     const plugin = this.plugin;
@@ -1315,11 +1325,19 @@ async function appendDiffRow(
   textCol.className = "sh-diff-row-text";
 
   if (line.text.length > 0) {
-    try {
-        const resolved = await resolveImagesInMarkdown(component, line.text, sourcePath);
-        await MarkdownRenderer.render(app, resolved, textCol, sourcePath, component);
-    } catch {
-      textCol.createEl("span", { text: line.text });
+    const ext = sourcePath.split(".").pop()?.toLowerCase() || "";
+    if (ext === "md") {
+      try {
+          const resolved = await resolveImagesInMarkdown(component, line.text, sourcePath);
+          await MarkdownRenderer.render(app, resolved, textCol, sourcePath, component);
+      } catch {
+        textCol.createEl("span", { text: line.text });
+      }
+    } else {
+      const span = textCol.createEl("span");
+      span.style.whiteSpace = "pre-wrap";
+      span.style.wordBreak = "break-word";
+      span.textContent = line.text;
     }
   }
 }

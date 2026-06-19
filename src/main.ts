@@ -15,6 +15,8 @@ export interface SaveHistorySettings {
   snapshotFolder: string;
   autosaveInterval: number;
   autosaveOnTabClose: boolean;
+  maxAutosaveVersions: number;
+  allowedExtensions: string;
 }
 
 const DEFAULT_SETTINGS: SaveHistorySettings = {
@@ -24,6 +26,8 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
   snapshotFolder: ".versions(SH)",
   autosaveInterval: 0,
   autosaveOnTabClose: false,
+  maxAutosaveVersions: 0,
+  allowedExtensions: "",
 };
 
 export class SaveHistoryPlugin extends Plugin {
@@ -55,7 +59,8 @@ export class SaveHistoryPlugin extends Plugin {
 
     this.registerEvent(
       this.app.vault.on("rename", async (file, oldPath) => {
-        if (!(file instanceof TFile) || file.extension !== "md") return;
+        if (!(file instanceof TFile)) return;
+        if (!this.isExtensionAllowed(file.extension)) return;
 
         const oldDir = getSnapshotDirPath(this, oldPath);
         const newDir = getSnapshotDirPath(this, file.path);
@@ -69,7 +74,8 @@ export class SaveHistoryPlugin extends Plugin {
 
     this.registerEvent(
       this.app.vault.on("delete", async (file) => {
-        if (!(file instanceof TFile) || file.extension !== "md") return;
+        if (!(file instanceof TFile)) return;
+        if (!this.isExtensionAllowed(file.extension)) return;
         await deleteSnapshotDirForFile(this, file.path);
       })
     );
@@ -82,9 +88,9 @@ export class SaveHistoryPlugin extends Plugin {
 
   registerTabCloseListener() {
     if (this.tabCloseEventRef) return;
-    this.lastActiveFile = this.getActiveMarkdownFile();
+    this.lastActiveFile = this.getActiveFile();
     this.tabCloseEventRef = this.app.workspace.on("active-leaf-change", () => {
-      const file = this.getActiveMarkdownFile();
+      const file = this.getActiveFile();
       if (this.lastActiveFile && this.lastActiveFile !== file) {
         this.autosaveManager?.saveOnTabClose(this.lastActiveFile);
       }
@@ -112,11 +118,29 @@ export class SaveHistoryPlugin extends Plugin {
     await (this as any).saveData?.(this.settings);
   }
 
-  getActiveMarkdownFile(): TFile | null {
+  getActiveFile(): TFile | null {
     const file = this.app.workspace.getActiveFile();
     if (!file) return null;
-    if (file.extension !== "md") return null;
+    if (!this.isExtensionAllowed(file.extension)) return null;
     return file;
+  }
+
+  isExtensionAllowed(ext: string): boolean {
+    const allowed = this.getAllowedExtensions();
+    return allowed.has(ext.toLowerCase());
+  }
+
+  getAllowedExtensions(): Set<string> {
+    const set = new Set<string>(["md"]);
+    const raw = this.settings.allowedExtensions;
+    if (raw) {
+      const parts = raw.split(/[,;\s]+/);
+      for (const part of parts) {
+        const clean = part.trim().toLowerCase().replace(/^\./, "");
+        if (clean) set.add(clean);
+      }
+    }
+    return set;
   }
 
   toast(message: string) {

@@ -2,6 +2,7 @@ import { TFile } from "obsidian";
 import type { SaveHistoryPlugin } from "./main";
 import type { setupVersioning } from "./versioning";
 import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
+import { deleteOldestAutosaves } from "./storage";
 
 type Versioning = ReturnType<typeof setupVersioning>;
 
@@ -40,16 +41,23 @@ export class AutosaveManager {
 
   async saveOnTabClose(file: TFile) {
     if (!this.plugin.settings.autosaveOnTabClose) return;
-    if (file.extension !== "md") return;
-    await this.versioning.saveNowForFile(file, "autosave");
+    const result = await this.versioning.saveNowForFile(file, "autosave");
+    if (result === "saved") {
+      await this.enforceMaxAutosaves(file.path);
+    }
     this.refreshSidebar();
   }
 
   private onTick() {
-    const file = this.plugin.getActiveMarkdownFile();
+    const file = this.plugin.getActiveFile();
     if (!file) return;
 
-    this.versioning.saveNowForFile(file, "autosave").then(() => this.refreshSidebar());
+    this.versioning.saveNowForFile(file, "autosave").then(async (result) => {
+      if (result === "saved") {
+        await this.enforceMaxAutosaves(file.path);
+      }
+      this.refreshSidebar();
+    });
   }
 
   private refreshSidebar() {
@@ -59,5 +67,11 @@ export class AutosaveManager {
         (leaf.view as SaveHistoryView).refresh();
       }
     }
+  }
+
+  private async enforceMaxAutosaves(vaultRelativePath: string) {
+    const max = this.plugin.settings.maxAutosaveVersions;
+    if (max <= 0) return;
+    await deleteOldestAutosaves(this.plugin, vaultRelativePath, max);
   }
 }

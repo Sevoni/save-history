@@ -111,6 +111,10 @@ type TranslationKeys = {
   autosaveOnTabClose: string;
   autosaveOnTabCloseDesc: string;
   autosaveVersionSaved: string;
+  maxAutosaveVersions: string;
+  maxAutosaveVersionsDesc: string;
+  allowedExtensions: string;
+  allowedExtensionsDesc: string;
 };
 
 const en: TranslationKeys = {
@@ -121,11 +125,11 @@ const en: TranslationKeys = {
   cmdOpenSidebar: "Open history sidebar",
   cmdRestoreLastBackup: "Restore last unsaved version",
   cmdRestoreLastBackupDesc: "Restore the last pre-restore backup for the current file",
-  noFileOpenSave: "Open a markdown (.md) file to save a version.",
-  noFileOpenRestore: "Open a markdown (.md) file to restore a version.",
+  noFileOpenSave: "Open a file to save a version.",
+  noFileOpenRestore: "Open a file to restore a version.",
 
   viewTitle: "File History",
-  noActiveFile: "No active markdown file.",
+  noActiveFile: "No active file.",
   fileLabel: "File: {name}",
   saveVersionNow: "Save version now",
   versionSaved: "Version saved.",
@@ -212,6 +216,10 @@ const en: TranslationKeys = {
   autosaveOnTabClose: "Autosave on tab close",
   autosaveOnTabCloseDesc: "Save a version when the file tab is closed.",
   autosaveVersionSaved: "Auto-saved version.",
+  maxAutosaveVersions: "Max autosave versions",
+  maxAutosaveVersionsDesc: "Maximum number of autosaved versions per file. 0 = unlimited.",
+  allowedExtensions: "Allowed file extensions",
+  allowedExtensionsDesc: "Space or comma separated extensions. .md is always included. Example: json css js html",
 };
 
 const ru: TranslationKeys = {
@@ -222,11 +230,11 @@ const ru: TranslationKeys = {
   cmdOpenSidebar: "Открыть боковую панель истории",
   cmdRestoreLastBackup: "Восстановить последнюю несохранённую версию",
   cmdRestoreLastBackupDesc: "Восстановить последний бэкап перед восстановлением для текущего файла",
-  noFileOpenSave: "Откройте markdown (.md) файл, чтобы сохранить версию.",
-  noFileOpenRestore: "Откройте markdown (.md) файл, чтобы восстановить версию.",
+  noFileOpenSave: "Откройте файл, чтобы сохранить версию.",
+  noFileOpenRestore: "Откройте файл, чтобы восстановить версию.",
 
   viewTitle: "История файла",
-  noActiveFile: "Нет активного markdown файла.",
+  noActiveFile: "Нет активного файла.",
   fileLabel: "Файл: {name}",
   saveVersionNow: "Сохранить версию",
   versionSaved: "Версия сохранена.",
@@ -313,6 +321,10 @@ const ru: TranslationKeys = {
   autosaveOnTabClose: "Автосохранение при закрытии вкладки",
   autosaveOnTabCloseDesc: "Сохранять версию при закрытии вкладки с файлом.",
   autosaveVersionSaved: "Автосохранённая версия.",
+  maxAutosaveVersions: "Макс. автосохранённых версий",
+  maxAutosaveVersionsDesc: "Максимальное количество автосохранённых версий на файл. 0 — без ограничений.",
+  allowedExtensions: "Разрешённые расширения файлов",
+  allowedExtensionsDesc: "Расширения через пробел или запятую. .md всегда включён. Пример: json css js html",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru };

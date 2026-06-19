@@ -139,6 +139,22 @@ export async function deleteSnapshotFile(
   return false;
 }
 
+export async function deleteOldestAutosaves(
+  plugin: SaveHistoryPlugin,
+  vaultRelativePath: string,
+  keepCount: number
+): Promise<void> {
+  const snapshots = await listSnapshotsForFile(plugin, vaultRelativePath);
+  const autosaves = snapshots.filter(s => s.reason === "autosave");
+
+  if (autosaves.length <= keepCount) return;
+
+  const toDelete = autosaves.slice(keepCount);
+  for (const s of toDelete) {
+    await deleteSnapshotFile(plugin, s.filePath);
+  }
+}
+
 async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: string) {
   const adapter: any = plugin.app.vault.adapter;
   const root = getSnapshotRoot(plugin);
