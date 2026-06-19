@@ -56,6 +56,7 @@ declare module "obsidian" {
     addCommand(command: Command): EventRef;
     registerEvent(event: EventRef): void;
     register(callback: () => void): void; // in case typings differ
+    registerInterval(id: number): void;
     registerView(type: string, viewCreator: (leaf: WorkspaceLeaf) => ItemView): void;
     loadData(): Promise<any>;
     saveData(data: any): Promise<void>;
@@ -73,6 +74,7 @@ declare module "obsidian" {
     getRightLeaf(split: boolean): WorkspaceLeaf | null;
     revealLeaf(leaf: WorkspaceLeaf): void;
     on(name: "file-open", callback: (file: TFile | null) => any): EventRef;
+    on(name: "active-leaf-change", callback: () => void): EventRef;
   }
 
   export interface DataAdapter {

@@ -104,6 +104,13 @@ type TranslationKeys = {
   versionPreview: string;
   noPreviewLoaded: string;
   noChangesDetected: string;
+
+  // Autosave
+  autosaveInterval: string;
+  autosaveIntervalDesc: string;
+  autosaveOnTabClose: string;
+  autosaveOnTabCloseDesc: string;
+  autosaveVersionSaved: string;
 };
 
 const en: TranslationKeys = {
@@ -199,6 +206,12 @@ const en: TranslationKeys = {
   versionPreview: "Version Preview",
   noPreviewLoaded: "No preview loaded.",
   noChangesDetected: "Version not saved — no changes detected.",
+
+  autosaveInterval: "Autosave interval (min)",
+  autosaveIntervalDesc: "Automatically save a version every N minutes. Set to 0 to disable.",
+  autosaveOnTabClose: "Autosave on tab close",
+  autosaveOnTabCloseDesc: "Save a version when the file tab is closed.",
+  autosaveVersionSaved: "Auto-saved version.",
 };
 
 const ru: TranslationKeys = {
@@ -294,6 +307,12 @@ const ru: TranslationKeys = {
   versionPreview: "Просмотр версии",
   noPreviewLoaded: "Просмотр не загружен.",
   noChangesDetected: "Версия не сохранена — изменений не обнаружено.",
+
+  autosaveInterval: "Интервал автосохранения (мин)",
+  autosaveIntervalDesc: "Автоматически сохранять версию каждые N минут. 0 — отключить.",
+  autosaveOnTabClose: "Автосохранение при закрытии вкладки",
+  autosaveOnTabCloseDesc: "Сохранять версию при закрытии вкладки с файлом.",
+  autosaveVersionSaved: "Автосохранённая версия.",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru };

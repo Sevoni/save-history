@@ -2,9 +2,10 @@ import { PluginSettingTab, type Plugin } from "obsidian";
 import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { translate, setLanguage, type Language } from "./locale";
 import { renameSnapshotFolder } from "./storage";
+import { AutosaveManager } from "./autosave";
 
 export class SaveHistorySettingTab extends PluginSettingTab {
-	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void>; toast: (msg: string) => void };
+	private plugin: Plugin & { settings: any; saveSettings: () => Promise<void>; toast: (msg: string) => void; autosaveManager: AutosaveManager | null; registerTabCloseListener: () => void; unregisterTabCloseListener: () => void };
 
 	constructor(app: any, plugin: Plugin) {
 		super(app, plugin);
@@ -126,6 +127,102 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				this.plugin.toast(translate("snapshotFolderRenameFailed"));
 			}
 		};
+
+		// Autosave interval
+		const intervalLabel = wrapper.createDiv({ text: translate("autosaveInterval"), cls: "setting-item-name" });
+		intervalLabel.style.marginTop = "16px";
+		const intervalDesc = wrapper.createDiv({
+			text: translate("autosaveIntervalDesc"),
+			cls: "setting-item-description",
+		});
+		intervalDesc.style.fontSize = "0.85em";
+		intervalDesc.style.color = "var(--text-muted)";
+		intervalDesc.style.marginBottom = "6px";
+
+		const intervalInput = wrapper.createEl("input") as HTMLInputElement;
+		intervalInput.type = "number";
+		intervalInput.min = "0";
+		intervalInput.value = String(this.plugin.settings.autosaveInterval);
+		intervalInput.style.padding = "4px 8px";
+		intervalInput.style.fontSize = "0.9em";
+		intervalInput.style.marginBottom = "16px";
+		intervalInput.style.width = "80px";
+		intervalInput.onchange = async () => {
+			const val = Math.max(0, Math.floor(Number(intervalInput.value) || 0));
+			intervalInput.value = String(val);
+			this.plugin.settings.autosaveInterval = val;
+			await this.plugin.saveSettings();
+			this.plugin.autosaveManager?.restart();
+		};
+
+		// Autosave on tab close — toggle
+		const tabRow = wrapper.createDiv();
+		tabRow.style.display = "flex";
+		tabRow.style.alignItems = "center";
+		tabRow.style.justifyContent = "space-between";
+		tabRow.style.marginBottom = "12px";
+
+		const tabTextCol = tabRow.createDiv();
+		const tabLabel = tabTextCol.createDiv({ text: translate("autosaveOnTabClose"), cls: "setting-item-name" });
+		const tabDesc = tabTextCol.createDiv({
+			text: translate("autosaveOnTabCloseDesc"),
+			cls: "setting-item-description",
+		});
+		tabDesc.style.fontSize = "0.85em";
+		tabDesc.style.color = "var(--text-muted)";
+
+		const tabToggle = this.createToggle(this.plugin.settings.autosaveOnTabClose, async (val) => {
+			this.plugin.settings.autosaveOnTabClose = val;
+			await this.plugin.saveSettings();
+			if (val) {
+				this.plugin.registerTabCloseListener();
+			} else {
+				this.plugin.unregisterTabCloseListener();
+			}
+		});
+		tabRow.appendChild(tabToggle);
+	}
+
+	private createToggle(checked: boolean, onChange: (val: boolean) => void): HTMLElement {
+		const container = document.createElement("div");
+		container.style.position = "relative";
+		container.style.width = "36px";
+		container.style.height = "20px";
+		container.style.flexShrink = "0";
+		container.style.cursor = "pointer";
+
+		const track = document.createElement("div");
+		track.style.width = "36px";
+		track.style.height = "20px";
+		track.style.borderRadius = "10px";
+		track.style.background = checked ? "var(--interactive-accent)" : "var(--background-modifier-border)";
+		track.style.transition = "background 0.2s";
+		track.style.position = "absolute";
+		track.style.top = "0";
+		track.style.left = "0";
+
+		const thumb = document.createElement("div");
+		thumb.style.width = "16px";
+		thumb.style.height = "16px";
+		thumb.style.borderRadius = "50%";
+		thumb.style.background = "white";
+		thumb.style.position = "absolute";
+		thumb.style.top = "2px";
+		thumb.style.left = checked ? "18px" : "2px";
+		thumb.style.transition = "left 0.2s";
+		thumb.style.boxShadow = "0 1px 3px rgba(0,0,0,0.3)";
+
+		track.appendChild(thumb);
+		container.appendChild(track);
+
+		container.addEventListener("click", () => {
+			checked = !checked;
+			track.style.background = checked ? "var(--interactive-accent)" : "var(--background-modifier-border)";
+			thumb.style.left = checked ? "18px" : "2px";
+			onChange(checked);
+		});
+
+		return container;
 	}
 
 	private refreshSidebarViews() {
