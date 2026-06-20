@@ -81,6 +81,16 @@ type TranslationKeys = {
   versionRestoredDot: string;
   failedLoadSnapshotDot: string;
 
+  // Export / Import
+  exportVersion: string;
+  exportAllVersions: string;
+  exportSuccess: string;
+  exportAllSuccess: string;
+  exportNoVersions: string;
+  importVersions: string;
+  importSuccess: string;
+  importNoFiles: string;
+
   // Diff modal
   diff: string;
   noDifferences: string;
@@ -190,6 +200,15 @@ const en: TranslationKeys = {
   versionRestoredDot: "Version restored.",
   failedLoadSnapshotDot: "Failed to load selected snapshot.",
 
+  exportVersion: "Export version",
+  exportAllVersions: "Export all versions",
+  exportSuccess: "Version exported.",
+  exportAllSuccess: "All versions exported to {path}.",
+  exportNoVersions: "No versions to export.",
+  importVersions: "Import versions\u2026",
+  importSuccess: "Versions imported.",
+  importNoFiles: "No files selected.",
+
   diff: "Diff",
   noDifferences: "No differences",
   added: "+{n} added",
@@ -294,6 +313,15 @@ const ru: TranslationKeys = {
   unnamed: "(без имени)",
   versionRestoredDot: "Версия восстановлена.",
   failedLoadSnapshotDot: "Не удалось загрузить снимок.",
+
+  exportVersion: "Экспорт версии",
+  exportAllVersions: "Экспорт всех версий",
+  exportSuccess: "Версия экспортирована.",
+  exportAllSuccess: "Все версии экспортированы в {path}.",
+  exportNoVersions: "Нет версий для экспорта.",
+  importVersions: "Импорт версий\u2026",
+  importSuccess: "Версии импортированы.",
+  importNoFiles: "Файлы не выбраны.",
 
   diff: "Сравнение",
   noDifferences: "Различий нет",

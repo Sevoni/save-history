@@ -2,8 +2,8 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
-import { setLanguage, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile } from "./storage";
+import { setLanguage, translate, type Language } from "./locale";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent } from "./storage";
 import { AutosaveManager } from "./autosave";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
@@ -77,6 +77,83 @@ export class SaveHistoryPlugin extends Plugin {
         if (!(file instanceof TFile)) return;
         if (!this.isExtensionAllowed(file.extension)) return;
         await deleteSnapshotDirForFile(this, file.path);
+      })
+    );
+
+    this.registerEvent(
+      (this.app.workspace as any).on("file-menu", (menu: any, file: any) => {
+        if (!(file instanceof TFile)) return;
+        if (!this.isExtensionAllowed(file.extension)) return;
+
+        menu.addItem((item: any) => {
+          item.setTitle(translate("exportAllVersions")).setIcon("download").onClick(async () => {
+            try {
+              const snapshots = await listSnapshotsForFile(this, file.path);
+              if (snapshots.length === 0) {
+                this.toast(translate("exportNoVersions"));
+                return;
+              }
+              if (typeof (window as any).showDirectoryPicker !== "function") {
+                this.toast(translate("failedLoadSnapshot"));
+                return;
+              }
+              const dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+              const baseName = file.name.replace(/\.[^.]+$/, "");
+              const folderHandle = await dirHandle.getDirectoryHandle(baseName, { create: true });
+              for (const snap of snapshots) {
+                const safeTs = snap.timestamp.replace(/[:.]/g, "-").slice(0, 19);
+                const fileName = `${snap.reason}_${safeTs}.${file.extension}`;
+                const fh = await folderHandle.getFileHandle(fileName, { create: true });
+                const writable = await fh.createWritable();
+                await writable.write(snap.content);
+                await writable.close();
+              }
+              this.toast(translate("exportAllSuccess", { path: baseName }));
+            } catch (e: any) {
+              if (e?.name !== "AbortError") {
+                this.toast(translate("failedLoadSnapshot"));
+              }
+            }
+          });
+        });
+
+        menu.addItem((item: any) => {
+          item.setTitle(translate("importVersions")).setIcon("upload").onClick(() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.multiple = true;
+            input.style.display = "none";
+            document.body.appendChild(input);
+            input.addEventListener("change", async () => {
+              try {
+                const fileList = input.files;
+                if (!fileList || fileList.length === 0) {
+                  this.toast(translate("importNoFiles"));
+                  return;
+                }
+                const timestamp = new Date().toISOString();
+                for (let i = 0; i < fileList.length; i++) {
+                  const f = fileList[i];
+                  const content = await f.text();
+                  const reason = f.name.replace(/\.[^.]+$/, "");
+                  await saveSnapshotContent(this, file.path, timestamp, content, reason);
+                }
+                this.toast(translate("importSuccess"));
+                const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+                for (const leaf of leaves) {
+                  if (leaf.view instanceof SaveHistoryView) {
+                    leaf.view.refresh();
+                  }
+                }
+              } catch {
+                this.toast(translate("failedLoadSnapshot"));
+              } finally {
+                input.remove();
+              }
+            });
+            input.click();
+          });
+        });
       })
     );
   }

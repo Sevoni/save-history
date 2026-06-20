@@ -68,6 +68,17 @@ declare module "obsidian" {
     callback: () => void;
   }
 
+  export class Menu {
+    addItem(cb: (item: MenuItem) => void): Menu;
+  }
+
+  export class MenuItem {
+    setTitle(title: string): MenuItem;
+    setIcon(icon: string): MenuItem;
+    onClick(callback: () => void): MenuItem;
+    setDisabled(disabled: boolean): MenuItem;
+  }
+
   export interface Workspace {
     getActiveFile(): TFile | null;
     getLeavesOfType(type: string): WorkspaceLeaf[];
@@ -75,6 +86,7 @@ declare module "obsidian" {
     revealLeaf(leaf: WorkspaceLeaf): void;
     on(name: "file-open", callback: (file: TFile | null) => any): EventRef;
     on(name: "active-leaf-change", callback: () => void): EventRef;
+    on(name: "file-menu", callback: (menu: Menu, file: TFile | TFolder) => any): EventRef;
   }
 
   export interface DataAdapter {

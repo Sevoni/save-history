@@ -632,6 +632,34 @@ export class SaveHistoryView extends ItemView {
           new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
         });
 
+        addMenuItem(translate("exportVersion"), async () => {
+          closeDropdown();
+          const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
+          if (!snapContent) {
+            this.plugin.toast(translate("failedLoadSnapshot"));
+            return;
+          }
+          try {
+            const ext = activeFile.extension;
+            const baseName = activeFile.name.replace(/\.[^.]+$/, "");
+            const ts = snap.timestamp.replace(/[:.]/g, "-").slice(0, 19);
+            const defaultName = `${baseName}_${ts}.${ext}`;
+
+            const blob = new Blob([snapContent.content], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = defaultName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.plugin.toast(translate("exportSuccess"));
+          } catch {
+            this.plugin.toast(translate("failedLoadSnapshot"));
+          }
+        });
+
         addMenuItem(translate("delete"), async () => {
           closeDropdown();
           showDeleteConfirm();
