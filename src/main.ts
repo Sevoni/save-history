@@ -122,6 +122,7 @@ export class SaveHistoryPlugin extends Plugin {
             const input = document.createElement("input");
             input.type = "file";
             input.multiple = true;
+
             input.style.display = "none";
             document.body.appendChild(input);
             input.addEventListener("change", async () => {
@@ -131,12 +132,38 @@ export class SaveHistoryPlugin extends Plugin {
                   this.toast(translate("importNoFiles"));
                   return;
                 }
-                const timestamp = new Date().toISOString();
+                const now = Date.now();
                 for (let i = 0; i < fileList.length; i++) {
                   const f = fileList[i];
-                  const content = await f.text();
-                  const reason = f.name.replace(/\.[^.]+$/, "");
-                  await saveSnapshotContent(this, file.path, timestamp, content, reason);
+                  const raw = await f.text();
+                  try {
+                    const record = JSON.parse(raw);
+                    if (record.path && record.content && record.timestamp) {
+                      await saveSnapshotContent(this, file.path, record.timestamp, record.content, record.reason || "import");
+                    } else {
+                      const nameNoExt = f.name.replace(/\.[^.]+$/, "");
+                      const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
+                      if (tsMatch) {
+                        const reason = tsMatch[1];
+                        const ts = tsMatch[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3");
+                        await saveSnapshotContent(this, file.path, ts, raw, reason);
+                      } else {
+                        const ts = new Date(now + i).toISOString();
+                        await saveSnapshotContent(this, file.path, ts, raw, nameNoExt);
+                      }
+                    }
+                  } catch {
+                    const nameNoExt = f.name.replace(/\.[^.]+$/, "");
+                    const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
+                    if (tsMatch) {
+                      const reason = tsMatch[1];
+                      const ts = tsMatch[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3");
+                      await saveSnapshotContent(this, file.path, ts, raw, reason);
+                    } else {
+                      const ts = new Date(now + i).toISOString();
+                      await saveSnapshotContent(this, file.path, ts, raw, nameNoExt);
+                    }
+                  }
                 }
                 this.toast(translate("importSuccess"));
                 const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
@@ -152,7 +179,7 @@ export class SaveHistoryPlugin extends Plugin {
               }
             });
             input.click();
-          });
+        });
         });
       })
     );
