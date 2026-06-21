@@ -17,7 +17,7 @@ declare global {
 }
 
 declare module "obsidian" {
-  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+  
   export class EventRef {}
 
   export class Notice {
