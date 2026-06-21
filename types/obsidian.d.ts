@@ -23,17 +23,26 @@ declare module "obsidian" {
     trigger(): void;
   }
 
-  export class Modal {
+  export class Component {
+    load(): void;
+    onload(): void;
+    onunload(): void;
+    unload(): void;
+    registerEvent(event: EventRef): void;
+  }
+
+  export class Modal extends Component {
     constructor(app: App);
     onOpen(): void;
     onClose(): void;
     contentEl: HTMLElement;
+    modalEl: HTMLElement;
     open(): void;
     close(): void;
     registerExtensions(extensions: unknown[]): void;
   }
 
-  export class ItemView {
+  export class ItemView extends Component {
     constructor(leaf: WorkspaceLeaf);
     getViewType(): string;
     getDisplayText(): string;
@@ -43,23 +52,70 @@ declare module "obsidian" {
     containerEl: HTMLElement;
   }
 
-  export interface WorkspaceLeaf {
-    view: ItemView;
-    setViewState(state: any): Promise<void>;
+  export class Setting {
+    constructor(containerEl: HTMLElement);
+    setName(name: string): this;
+    setDesc(desc: string | DocumentFragment): this;
+    setHeading(): this;
+    setClass(cls: string): this;
+    addToggle(callback: (toggle: ToggleComponent) => void): this;
+    addText(callback: (text: TextComponent) => void): this;
+    addDropdown(callback: (dropdown: DropdownComponent) => void): this;
+    addSlider(callback: (slider: SliderComponent) => void): this;
+    infoEl: HTMLElement;
+    settingEl: HTMLElement;
   }
 
-  export class Plugin {
-    app: App;
-    async onload(): Promise<void>;
-    onunload(): void;
+  export class ToggleComponent {
+    setValue(value: boolean): this;
+    getValue(): boolean;
+    onChange(callback: (value: boolean) => void): this;
+  }
 
+  export class TextComponent {
+    inputEl: HTMLInputElement;
+    setValue(value: string): this;
+    getValue(): string;
+    onChange(callback: (value: string) => void): this;
+    setPlaceholder(placeholder: string): this;
+  }
+
+  export class DropdownComponent {
+    addOption(value: string, label: string): this;
+    setValue(value: string): this;
+    getValue(): string;
+    onChange(callback: (value: string) => void): this;
+  }
+
+  export class SliderComponent {
+    setLimits(min: number, max: number, step: number): this;
+    setValue(value: number): this;
+    getValue(): number;
+    onChange(callback: (value: number) => void): this;
+  }
+
+  export class PluginSettingTab {
+    app: App;
+    plugin: Plugin;
+    containerEl: HTMLElement;
+    constructor(app: App, plugin: Plugin);
+    display(): void;
+    hide(): void;
+  }
+
+  export interface WorkspaceLeaf {
+    view: ItemView;
+    setViewState(state: Record<string, unknown>): Promise<void>;
+  }
+
+  export class Plugin extends Component {
+    app: App;
     addCommand(command: Command): EventRef;
-    registerEvent(event: EventRef): void;
-    register(callback: () => void): void; // in case typings differ
     registerInterval(id: number): void;
     registerView(type: string, viewCreator: (leaf: WorkspaceLeaf) => ItemView): void;
-    loadData(): Promise<any>;
-    saveData(data: any): Promise<void>;
+    loadData(): Promise<Record<string, unknown> | null>;
+    saveData(data: Record<string, unknown>): Promise<void>;
+    addSettingTab(settingTab: PluginSettingTab): void;
   }
 
   export interface Command {
@@ -84,28 +140,31 @@ declare module "obsidian" {
     getLeavesOfType(type: string): WorkspaceLeaf[];
     getRightLeaf(split: boolean): WorkspaceLeaf | null;
     revealLeaf(leaf: WorkspaceLeaf): void;
-    on(name: "file-open", callback: (file: TFile | null) => any): EventRef;
-    on(name: "active-leaf-change", callback: () => void): EventRef;
-    on(name: "file-menu", callback: (menu: Menu, file: TFile | TFolder) => any): EventRef;
+    on(name: "file-open", callback: (file: TFile | null) => unknown): EventRef;
+    on(name: "active-leaf-change", callback: () => unknown): EventRef;
+    on(name: "file-menu", callback: (menu: Menu, file: TFile | TFolder) => unknown): EventRef;
   }
 
   export interface DataAdapter {
     mkdir(path: string): Promise<void>;
+    rmdir(path: string): Promise<void>;
     exists(path: string): Promise<boolean>;
     write(path: string, data: string): Promise<void>;
     read(path: string): Promise<string>;
     list(path: string): Promise<{ files: string[]; folders: string[] }>;
     remove(path: string): Promise<void>;
+    rename(oldPath: string, newPath: string): Promise<void>;
   }
 
   export interface Vault {
     adapter: DataAdapter;
     read(file: TFile): Promise<string>;
     modify(file: TFile, data: string): Promise<void> | void;
+    create(path: string, data: string): Promise<TFile>;
     exists(path: string): Promise<boolean>;
-    getAbstractFileByPath(path: string): unknown | null;
-
-    // used for reading directories recursively
+    getAbstractFileByPath(path: string): TFile | TFolder | null;
+    on(name: "rename", callback: (file: TFile | TFolder, oldPath: string) => unknown): EventRef;
+    on(name: "delete", callback: (file: TFile | TFolder) => unknown): EventRef;
     getFiles(): Promise<TFile[]>;
   }
 
@@ -115,20 +174,12 @@ declare module "obsidian" {
   }
 
   export class MarkdownRenderer {
-    static render(app: App, markdown: string, el: HTMLElement, sourcePath: string, component: unknown): Promise<void>;
+    static render(
+      app: App,
+      markdown: string,
+      el: HTMLElement,
+      sourcePath: string,
+      component: Component
+    ): Promise<void>;
   }
-
-  export interface AppEvents {
-    // we’ll attach to vault.modify, so type it as any
-    [key: string]: any;
-  }
-}
-
-interface HTMLElement {
-  empty(): void;
-  createDiv(options?: { cls?: string; text?: string }): HTMLDivElement;
-  createEl<K extends keyof HTMLElementTagNameMap>(
-    tag: K,
-    options?: { text?: string; cls?: string }
-  ): HTMLElementTagNameMap[K];
 }

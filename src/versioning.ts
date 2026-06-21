@@ -1,6 +1,6 @@
 import { TFile } from "obsidian";
 import { SaveHistoryPlugin } from "./main";
-import { saveSnapshotContent, listSnapshotsForFile, readSnapshotContent } from "./storage";
+import { saveSnapshotContent, listSnapshotsForFile, readSnapshotContent, SnapshotRecord } from "./storage";
 
 export function setupVersioning(plugin: SaveHistoryPlugin) {
   async function saveNowForFile(file: TFile, reason: string): Promise<"saved" | "no_change"> {
@@ -26,7 +26,7 @@ export function setupVersioning(plugin: SaveHistoryPlugin) {
     return "saved";
   }
 
-  async function restoreFromSnapshot(file: TFile, snapshot: any) {
+  async function restoreFromSnapshot(file: TFile, snapshot: SnapshotRecord) {
     if (!file) return;
     if (!plugin.isExtensionAllowed(file.extension)) return;
     if (!snapshot?.content) return;

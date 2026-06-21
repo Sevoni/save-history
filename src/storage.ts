@@ -1,3 +1,4 @@
+import { DataAdapter } from "obsidian";
 import { SaveHistoryPlugin } from "./main";
 
 export type SnapshotRecord = {
@@ -69,7 +70,7 @@ export async function listSnapshotsForFile(
     return [];
   }
 
-  let listResult;
+  let listResult: { files: string[]; folders: string[] } | undefined;
   try {
     listResult = await adapter.list(dirPath);
   } catch {
@@ -156,7 +157,7 @@ export async function deleteOldestAutosaves(
 }
 
 async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: string) {
-  const adapter: any = plugin.app.vault.adapter;
+  const adapter = plugin.app.vault.adapter;
   const root = getSnapshotRoot(plugin);
 
   // Walk upward from the deleted file's folder, removing empty dirs,
@@ -168,7 +169,7 @@ async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: stri
   while (dir && dir !== root && dir.startsWith(root + "/")) {
     if (!(await adapter.exists(dir))) break;
 
-    let listResult;
+    let listResult: { files: string[]; folders: string[] } | undefined;
     try {
       listResult = await adapter.list(dir);
     } catch {
@@ -254,7 +255,7 @@ export async function savePreRestoreBackup(
   await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
 }
 
-async function resolvePath(adapter: any, path: string): Promise<string | null> {
+async function resolvePath(adapter: DataAdapter, path: string): Promise<string | null> {
   const parts = path.replace(/\\/g, "/").split("/").filter(p => p);
   let current = "";
   for (const part of parts) {
@@ -266,7 +267,7 @@ async function resolvePath(adapter: any, path: string): Promise<string | null> {
   return current || null;
 }
 
-export async function renameSnapshotFolder(adapter: any, oldName: string, newName: string): Promise<boolean> {
+export async function renameSnapshotFolder(adapter: DataAdapter, oldName: string, newName: string): Promise<boolean> {
   if (oldName === newName) return true;
 
   const resolvedOld = await resolvePath(adapter, oldName);
@@ -305,7 +306,7 @@ export async function renameSnapshotFolder(adapter: any, oldName: string, newNam
       let dir = oldParent;
       while (dir) {
         if (!(await adapter.exists(dir))) break;
-        let listResult;
+        let listResult: { files: string[]; folders: string[] } | undefined;
         try {
           listResult = await adapter.list(dir);
         } catch {
@@ -340,7 +341,7 @@ export async function deleteSnapshotDirForFile(
 
   if (!(await adapter.exists(dirPath))) return;
 
-  let listResult;
+  let listResult: { files: string[]; folders: string[] } | undefined;
   try {
     listResult = await adapter.list(dirPath);
   } catch {

@@ -57,14 +57,14 @@ export class AutosaveManager {
         await this.enforceMaxAutosaves(file.path);
       }
       this.refreshSidebar();
-    });
+    }).catch(() => {});
   }
 
   private refreshSidebar() {
     const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
     for (const leaf of leaves) {
       if (leaf.view instanceof SaveHistoryView) {
-        (leaf.view as SaveHistoryView).refresh();
+        leaf.view.refresh();
       }
     }
   }

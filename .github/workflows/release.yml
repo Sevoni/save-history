@@ -3,19 +3,16 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
-      - "[0-9]*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version (e.g. 1.1.0)"
-        required: true
+      - "*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -23,45 +20,18 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: node build.js
 
-      - name: Set version from tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          VERSION="${VERSION#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: main.js
 
-      - name: Set version from input
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Bump manifest.json version
-        run: |
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" manifest.json
-
-      - name: Build
-        run: npm run build
-
-      - name: Commit version bump
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "release: v$VERSION"
-          git tag "v$VERSION"
-          git push origin main --tags
-
-      - name: Create GitHub Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ github.ref_name }}"
-          name: "v${{ env.VERSION }}"
           files: |
             main.js
+            styles.css
             manifest.json
-          generate_release_notes: true

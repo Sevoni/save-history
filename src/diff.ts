@@ -13,7 +13,7 @@ export function computeDiff(oldText: string, newText: string): DiffLine[] {
 
   if (n === 0 && m === 0) return [];
 
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
       if (oldLines[i - 1] === newLines[j - 1]) {
