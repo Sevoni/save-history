@@ -58,7 +58,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
   plugin.addCommand?.({
     id: "save-history:save-now",
     name: translate("cmdSaveNow"),
-    callback: async () => {
+    callback: () => { void (async () => {
       const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenSave"));
@@ -73,26 +73,26 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
           void leaf.view.refresh();
         }
       }
-    },
+    })(); },
   } as Parameters<typeof plugin.addCommand>[0]);
 
   plugin.addCommand?.({
     id: "save-history:restore",
     name: translate("cmdRestore"),
-    callback: async () => {
+    callback: () => { void (async () => {
       const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenRestore"));
         return;
       }
       new RestoreVersionModal(plugin, file, versioning).open();
-    },
+    })(); },
   } as Parameters<typeof plugin.addCommand>[0]);
 
   plugin.addCommand?.({
     id: "save-history:open-sidebar",
     name: translate("cmdOpenSidebar"),
-    callback: async () => {
+    callback: () => { void (async () => {
       let leaf = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY)[0];
       if (!leaf) {
         const rightLeaf = plugin.app.workspace.getRightLeaf(false);
@@ -107,13 +107,13 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
       if (leaf) {
         plugin.app.workspace.revealLeaf(leaf);
       }
-    },
+    })(); },
   } as Parameters<typeof plugin.addCommand>[0]);
 
   plugin.addCommand?.({
     id: "save-history:restore-last-backup",
     name: translate("cmdRestoreLastBackup"),
-    callback: async () => {
+    callback: () => { void (async () => {
       const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenRestore"));
@@ -140,7 +140,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
           void leaf.view.refresh();
         }
       }
-    },
+    })(); },
   } as Parameters<typeof plugin.addCommand>[0]);
 }
 
@@ -275,7 +275,7 @@ export class SaveHistoryView extends ItemView {
           const groupTitle = groupHeader.createEl("span", { cls: "sh-group-title" });
           groupTitle.textContent = group.label;
 
-          const _count = groupHeader.createEl("span", { text: ` (${group.snapshots.length})`, cls: "sh-group-count" });
+          groupHeader.createEl("span", { text: ` (${group.snapshots.length})`, cls: "sh-group-count" });
 
           const itemsEl = groupEl.createDiv({ cls: "sh-group-items" });
           if (isCollapsed) {
@@ -341,7 +341,7 @@ export class SaveHistoryView extends ItemView {
 
         actions.empty();
 
-        const _confirmText = actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
+        actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
 
         const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
         yesBtn.onclick = async (ev) => {
@@ -452,7 +452,7 @@ export class SaveHistoryView extends ItemView {
         const dotsBtn = nameRow.createEl("span", { text: "\u22EE", cls: "sh-snapshot-dots" });
         dotsBtn.title = translate("moreActions");
 
-        const doc = activeWindow?.document ?? document;
+        const doc = activeDocument as Document;
         const dropdown = doc.createElement("div");
         dropdown.dataset.saveHistoryDropdown = "";
         dropdown.classList.add("sh-dropdown");
@@ -497,7 +497,7 @@ export class SaveHistoryView extends ItemView {
 
         addMenuItem(translate("renameVersion"), () => renderEditState());
 
-        addMenuItem(translate("diffWithCurrent"), async () => {
+        addMenuItem(translate("diffWithCurrent"), () => { void (async () => {
           const curFile = this.plugin.getActiveFile();
           if (!curFile) return;
           const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
@@ -507,14 +507,16 @@ export class SaveHistoryView extends ItemView {
           }
           const currentContent = await this.plugin.app.vault.read(curFile);
           const currentSnap: SnapshotRecord & { filePath: string } = {
+            path: curFile.path,
+            content: currentContent,
             timestamp: new Date().toISOString(),
             reason: translate("currentFile"),
             filePath: curFile.path,
           };
           new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
-        });
+        })(); });
 
-        addMenuItem(translate("exportVersion"), async () => {
+        addMenuItem(translate("exportVersion"), () => { void (async () => {
           closeDropdown();
           const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
           if (!snapContent) {
@@ -541,7 +543,7 @@ export class SaveHistoryView extends ItemView {
           } catch {
             this.plugin.toast(translate("failedLoadSnapshot"));
           }
-        });
+        })(); });
 
         addMenuItem(translate("delete"), () => {
           closeDropdown();
@@ -651,7 +653,7 @@ export class SaveHistoryView extends ItemView {
 
     const showDeleteConfirm = () => {
       actions.empty();
-      const _confirmText = actions.createEl("span", { text: translate("deleteConfirm"), cls: "sh-delete-confirm-text" });
+      actions.createEl("span", { text: translate("deleteConfirm"), cls: "sh-delete-confirm-text" });
 
       const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
       yesBtn.onclick = async (ev) => {
@@ -765,7 +767,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   private cleanupDropdowns() {
-    const doc = activeWindow?.document ?? document;
+    const doc = activeDocument as Document;
     doc.querySelectorAll("[data-save-history-dropdown]").forEach(el => el.remove());
   }
 }
@@ -916,9 +918,9 @@ class DiffModal extends Modal {
     if (added === 0 && removed === 0) {
       stats.textContent = translate("noDifferences");
     } else {
-      const _sAdd = stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
+      stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
       stats.createEl("span", { text: "  " });
-      const _sRem = stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
+      stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
     }
 
     const diffContainer = el.createDiv({ cls: "sh-diff-container" });
@@ -1032,7 +1034,7 @@ async function appendDiffRow(
 }
 
 function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSignal) {
-  const doc = activeWindow?.document ?? document;
+  const doc = activeDocument as Document;
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
 
@@ -1086,7 +1088,7 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSigna
 }
 
 function makeResizable(el: HTMLElement, signal?: AbortSignal) {
-  const doc = activeWindow?.document ?? document;
+  const doc = activeDocument as Document;
   const resizer = el.createDiv({ cls: "sh-resizer" });
   resizer.createDiv({ cls: "sh-resizer-line1" });
   resizer.createDiv({ cls: "sh-resizer-line2" });

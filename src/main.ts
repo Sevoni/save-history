@@ -94,12 +94,19 @@ export class SaveHistoryPlugin extends Plugin {
                   this.toast(translate("exportNoVersions"));
                   return;
                 }
+                interface DirHandle {
+                  getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<DirHandle>;
+                  getFileHandle(name: string, opts?: { create?: boolean }): Promise<FileHandle>;
+                }
+                interface FileHandle {
+                  createWritable(): Promise<{ write(data: string | BufferSource | Blob): Promise<void>; close(): Promise<void> }>;
+                }
                 const w = window as unknown as { showDirectoryPicker?: (opts: { mode: string }) => Promise<unknown> };
                 if (typeof w.showDirectoryPicker !== "function") {
                   this.toast(translate("failedLoadSnapshot"));
                   return;
                 }
-                const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" });
+                const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" }) as unknown as DirHandle;
                 const baseName = file.name.replace(/\.[^.]+$/, "");
                 const folderHandle = await dirHandle.getDirectoryHandle(baseName, { create: true });
                 for (const snap of snapshots) {
@@ -123,7 +130,7 @@ export class SaveHistoryPlugin extends Plugin {
 
         menu.addItem((item: MenuItem) => {
           item.setTitle(translate("importVersions")).setIcon("upload").onClick(() => {
-            const doc = activeWindow?.document ?? document;
+            const doc = activeDocument as Document;
             const input = doc.createElement("input");
             input.type = "file";
             input.multiple = true;
@@ -226,7 +233,7 @@ export class SaveHistoryPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings as Record<string, unknown>);
+    await this.saveData(this.settings as unknown as Record<string, unknown>);
   }
 
   getActiveFile(): TFile | null {

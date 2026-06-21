@@ -16,7 +16,7 @@ type PluginWithSettings = Plugin & {
 };
 
 export class SaveHistorySettingTab extends PluginSettingTab {
-	private plugin: PluginWithSettings;
+	plugin: PluginWithSettings;
 
 	constructor(app: PluginWithSettings["app"], plugin: Plugin) {
 		super(app, plugin);
@@ -208,7 +208,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		checked: boolean,
 		onChange: (val: boolean) => void
 	): HTMLElement {
-		const doc = activeWindow?.document ?? document;
+		const doc = activeDocument as Document;
 
 		const container = doc.createElement("div");
 		container.classList.add("sh-toggle");

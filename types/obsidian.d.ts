@@ -2,6 +2,9 @@
    This is intentionally incomplete; it only covers what this plugin uses. */
 
 declare global {
+  var activeWindow: Window | undefined;
+  var activeDocument: Document | undefined;
+
   interface HTMLElement {
     empty(): void;
     createDiv(options?: { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
