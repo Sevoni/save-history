@@ -1,6 +1,8 @@
 /* Minimal Obsidian API typings for plugin development/build.
    This is intentionally incomplete; it only covers what this plugin uses. */
 
+export {};
+
 declare global {
   var activeWindow: Window | undefined;
   var activeDocument: Document | undefined;
