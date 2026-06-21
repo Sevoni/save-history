@@ -126,9 +126,8 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: any) {
         plugin.toast(translate("failedLoadBackup"));
         return;
       }
-      const currentContent = await plugin.app.vault.read(file);
-      await savePreRestoreBackup(plugin, file.path, currentContent);
       await versioning.restoreFromSnapshot(file, restored);
+      await deleteSnapshotFile(plugin, preRestoreBackup.filePath);
       plugin.toast(translate("backupRestored"));
 
       const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
@@ -392,10 +391,8 @@ export class SaveHistoryView extends ItemView {
           return;
         }
         
-        const currentContent = await this.plugin.app.vault.read(curFile);
-        await savePreRestoreBackup(this.plugin, curFile.path, currentContent);
-
         await this.versioning.restoreFromSnapshot(curFile, restored);
+        await deleteSnapshotFile(this.plugin, preRestoreBackup.filePath);
         this.plugin.toast(translate("backupRestored"));
         this.refresh();
       };
@@ -1054,6 +1051,9 @@ class RestoreVersionModal extends Modal {
       this.plugin.toast(translate("failedLoadSnapshotDot"));
       return;
     }
+
+    const currentContent = await this.plugin.app.vault.read(this.file);
+    await savePreRestoreBackup(this.plugin, this.file.path, currentContent);
 
     await this.versioning.restoreFromSnapshot(this.file, restored);
     this.plugin.toast(translate("versionRestoredDot"));

@@ -225,7 +225,8 @@ export async function savePreRestoreBackup(
   const dirPath = getSnapshotDirPath(plugin, vaultRelativePath);
   const adapter = plugin.app.vault.adapter;
 
-  // 1. Delete any existing pre-restore backup for this file
+  // If a pre-restore backup already exists, don't overwrite it —
+  // preserve the original unsaved content until the user explicitly restores it.
   if (await adapter.exists(dirPath)) {
     try {
       const listResult = await adapter.list(dirPath);
@@ -237,7 +238,7 @@ export async function savePreRestoreBackup(
             const json = await adapter.read(fullVaultPath);
             const record = JSON.parse(json) as SnapshotRecord;
             if (record.reason === "pre-restore") {
-              await adapter.remove(fullVaultPath);
+              return;
             }
           } catch {
             // ignore
@@ -249,7 +250,6 @@ export async function savePreRestoreBackup(
     }
   }
 
-  // 2. Save the new pre-restore backup
   const timestamp = new Date().toISOString();
   await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, "pre-restore");
 }
