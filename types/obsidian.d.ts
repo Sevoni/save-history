@@ -1,8 +1,24 @@
 /* Minimal Obsidian API typings for plugin development/build.
    This is intentionally incomplete; it only covers what this plugin uses. */
 
+declare global {
+  interface HTMLElement {
+    empty(): void;
+    createDiv(options?: { cls?: string; text?: string; attr?: Record<string, string> }): HTMLDivElement;
+    createEl<K extends keyof HTMLElementTagNameMap>(
+      tag: K,
+      options?: { cls?: string; text?: string; attr?: Record<string, string> }
+    ): HTMLElementTagNameMap[K];
+    createEl(
+      tag: string,
+      options?: { cls?: string; text?: string; attr?: Record<string, string> }
+    ): HTMLElement;
+  }
+}
+
 declare module "obsidian" {
-  export type EventRef = unknown;
+  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+  export class EventRef {}
 
   export class Notice {
     constructor(message: string);
@@ -47,8 +63,8 @@ declare module "obsidian" {
     getViewType(): string;
     getDisplayText(): string;
     getIcon(): string;
-    onOpen(): Promise<void>;
-    onClose(): Promise<void>;
+    onOpen(): void;
+    onClose(): void;
     containerEl: HTMLElement;
   }
 

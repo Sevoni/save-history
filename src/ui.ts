@@ -1,4 +1,4 @@
-import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Menu, MenuItem, TFolder, Component } from "obsidian";
+import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup } from "./storage";
 import type { SnapshotRecord } from "./storage";
@@ -275,7 +275,7 @@ export class SaveHistoryView extends ItemView {
           const groupTitle = groupHeader.createEl("span", { cls: "sh-group-title" });
           groupTitle.textContent = group.label;
 
-          const count = groupHeader.createEl("span", { text: ` (${group.snapshots.length})`, cls: "sh-group-count" });
+          const _count = groupHeader.createEl("span", { text: ` (${group.snapshots.length})`, cls: "sh-group-count" });
 
           const itemsEl = groupEl.createDiv({ cls: "sh-group-items" });
           if (isCollapsed) {
@@ -341,7 +341,7 @@ export class SaveHistoryView extends ItemView {
 
         actions.empty();
 
-        const confirmText = actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
+        const _confirmText = actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
 
         const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
         yesBtn.onclick = async (ev) => {
@@ -651,7 +651,7 @@ export class SaveHistoryView extends ItemView {
 
     const showDeleteConfirm = () => {
       actions.empty();
-      const confirmText = actions.createEl("span", { text: translate("deleteConfirm"), cls: "sh-delete-confirm-text" });
+      const _confirmText = actions.createEl("span", { text: translate("deleteConfirm"), cls: "sh-delete-confirm-text" });
 
       const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
       yesBtn.onclick = async (ev) => {
@@ -722,7 +722,7 @@ export class SaveHistoryView extends ItemView {
         const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, curFile.path);
         resolvedContent.then((resolved) => {
           if (curFile.extension === "md") {
-            MarkdownRenderer.render(this.plugin.app, resolved, content, curFile.path, this);
+            void MarkdownRenderer.render(this.plugin.app, resolved, content, curFile.path, this);
           } else {
             const pre = content.createEl("pre", { cls: "sh-raw-pre" });
             pre.textContent = resolved;
@@ -916,9 +916,9 @@ class DiffModal extends Modal {
     if (added === 0 && removed === 0) {
       stats.textContent = translate("noDifferences");
     } else {
-      const sAdd = stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
+      const _sAdd = stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
       stats.createEl("span", { text: "  " });
-      const sRem = stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
+      const _sRem = stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
     }
 
     const diffContainer = el.createDiv({ cls: "sh-diff-container" });
@@ -1032,6 +1032,7 @@ async function appendDiffRow(
 }
 
 function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSignal) {
+  const doc = activeWindow?.document ?? document;
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
 
@@ -1053,13 +1054,12 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSigna
       parentStyle.alignItems = "flex-start";
     }
 
-    el.style.position = "fixed";
+    el.classList.add("sh-dragging");
     el.style.left = origLeft + "px";
     el.style.top = origTop + "px";
-    el.style.margin = "0";
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    doc.addEventListener("mousemove", onMouseMove);
+    doc.addEventListener("mouseup", onMouseUp);
   };
 
   const onMouseMove = (e: MouseEvent) => {
@@ -1072,20 +1072,21 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSigna
 
   const onMouseUp = () => {
     dragging = false;
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    doc.removeEventListener("mousemove", onMouseMove);
+    doc.removeEventListener("mouseup", onMouseUp);
   };
 
   handle.addEventListener("mousedown", onMouseDown);
 
   signal?.addEventListener("abort", () => {
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    doc.removeEventListener("mousemove", onMouseMove);
+    doc.removeEventListener("mouseup", onMouseUp);
     handle.removeEventListener("mousedown", onMouseDown);
   });
 }
 
 function makeResizable(el: HTMLElement, signal?: AbortSignal) {
+  const doc = activeWindow?.document ?? document;
   const resizer = el.createDiv({ cls: "sh-resizer" });
   resizer.createDiv({ cls: "sh-resizer-line1" });
   resizer.createDiv({ cls: "sh-resizer-line2" });
@@ -1102,8 +1103,8 @@ function makeResizable(el: HTMLElement, signal?: AbortSignal) {
     origW = el.offsetWidth;
     origH = el.offsetHeight;
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    doc.addEventListener("mousemove", onMouseMove);
+    doc.addEventListener("mouseup", onMouseUp);
   };
 
   const onMouseMove = (ev: MouseEvent) => {
@@ -1116,15 +1117,15 @@ function makeResizable(el: HTMLElement, signal?: AbortSignal) {
 
   const onMouseUp = () => {
     resizing = false;
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    doc.removeEventListener("mousemove", onMouseMove);
+    doc.removeEventListener("mouseup", onMouseUp);
   };
 
   resizer.addEventListener("mousedown", onMouseDown);
 
   signal?.addEventListener("abort", () => {
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    doc.removeEventListener("mousemove", onMouseMove);
+    doc.removeEventListener("mouseup", onMouseUp);
     resizer.removeEventListener("mousedown", onMouseDown);
   });
 }

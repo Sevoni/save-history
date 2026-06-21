@@ -39,13 +39,15 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				dropdown.addOption("en", "English");
 				dropdown.addOption("ru", "\u0420\u0443\u0441\u0441\u043a\u0438\u0439");
 				dropdown.setValue(this.plugin.settings.language);
-				dropdown.onChange(async (val) => {
-					const lang = val as Language;
-					this.plugin.settings.language = lang;
-					setLanguage(lang);
-					await this.plugin.saveSettings();
-					this.display();
-					this.refreshSidebarViews();
+				dropdown.onChange((val) => {
+					void (async () => {
+						const lang = val as Language;
+						this.plugin.settings.language = lang;
+						setLanguage(lang);
+						await this.plugin.saveSettings();
+						this.display();
+						this.refreshSidebarViews();
+					})();
 				});
 			});
 
@@ -60,10 +62,12 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				dropdown.addOption("month", translate("groupMonth"));
 				dropdown.addOption("year", translate("groupYear"));
 				dropdown.setValue(this.plugin.settings.groupBy);
-				dropdown.onChange(async (val) => {
-					this.plugin.settings.groupBy = val as GroupByMode;
-					await this.plugin.saveSettings();
-					this.refreshSidebarViews();
+				dropdown.onChange((val) => {
+					void (async () => {
+						this.plugin.settings.groupBy = val as GroupByMode;
+						await this.plugin.saveSettings();
+						this.refreshSidebarViews();
+					})();
 				});
 			});
 
@@ -83,35 +87,37 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			text: translate("save"),
 			cls: "sh-settings-btn",
 		});
-		folderSaveBtn.addEventListener("click", async () => {
-			const newName = folderInput.value.trim();
-			if (!newName) return;
-			if (newName === this.plugin.settings.snapshotFolder) return;
+		folderSaveBtn.addEventListener("click", () => {
+			void (async () => {
+				const newName = folderInput.value.trim();
+				if (!newName) return;
+				if (newName === this.plugin.settings.snapshotFolder) return;
 
-			if (
-				/[<>:"|?*]/.test(newName) ||
-				newName.startsWith("/") ||
-				newName.endsWith("/") ||
-				newName.includes("..")
-			) {
-				this.plugin.toast(translate("snapshotFolderRenameFailed"));
-				return;
-			}
+				if (
+					/[<>:"|?*]/.test(newName) ||
+					newName.startsWith("/") ||
+					newName.endsWith("/") ||
+					newName.includes("..")
+				) {
+					this.plugin.toast(translate("snapshotFolderRenameFailed"));
+					return;
+				}
 
-			const oldName = this.plugin.settings.snapshotFolder;
-			const success = await renameSnapshotFolder(
-				this.plugin.app.vault.adapter,
-				oldName,
-				newName
-			);
-			if (success) {
-				this.plugin.settings.snapshotFolder = newName;
-				await this.plugin.saveSettings();
-				this.plugin.toast(translate("snapshotFolderRenamed"));
-				this.refreshSidebarViews();
-			} else {
-				this.plugin.toast(translate("snapshotFolderRenameFailed"));
-			}
+				const oldName = this.plugin.settings.snapshotFolder;
+				const success = await renameSnapshotFolder(
+					this.plugin.app.vault.adapter,
+					oldName,
+					newName
+				);
+				if (success) {
+					this.plugin.settings.snapshotFolder = newName;
+					await this.plugin.saveSettings();
+					this.plugin.toast(translate("snapshotFolderRenamed"));
+					this.refreshSidebarViews();
+				} else {
+					this.plugin.toast(translate("snapshotFolderRenameFailed"));
+				}
+			})();
 		});
 
 		// Autosave interval
@@ -123,12 +129,14 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				text.inputEl.type = "number";
 				text.inputEl.min = "0";
 				text.inputEl.classList.add("sh-settings-input-num");
-				text.onChange(async (val) => {
-					const num = Math.max(0, Math.floor(Number(val) || 0));
-					text.setValue(String(num));
-					this.plugin.settings.autosaveInterval = num;
-					await this.plugin.saveSettings();
-					this.plugin.autosaveManager?.restart();
+				text.onChange((val) => {
+					void (async () => {
+						const num = Math.max(0, Math.floor(Number(val) || 0));
+						text.setValue(String(num));
+						this.plugin.settings.autosaveInterval = num;
+						await this.plugin.saveSettings();
+						this.plugin.autosaveManager?.restart();
+					})();
 				});
 			});
 
@@ -146,14 +154,16 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 
 		const tabToggle = this.createToggle(
 			this.plugin.settings.autosaveOnTabClose,
-			async (val) => {
-				this.plugin.settings.autosaveOnTabClose = val;
-				await this.plugin.saveSettings();
-				if (val) {
-					this.plugin.registerTabCloseListener();
-				} else {
-					this.plugin.unregisterTabCloseListener();
-				}
+			(val) => {
+				void (async () => {
+					this.plugin.settings.autosaveOnTabClose = val;
+					await this.plugin.saveSettings();
+					if (val) {
+						this.plugin.registerTabCloseListener();
+					} else {
+						this.plugin.unregisterTabCloseListener();
+					}
+				})();
 			}
 		);
 		tabToggleRow.appendChild(tabToggle);
@@ -167,11 +177,13 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				text.inputEl.type = "number";
 				text.inputEl.min = "0";
 				text.inputEl.classList.add("sh-settings-input-num");
-				text.onChange(async (val) => {
-					const num = Math.max(0, Math.floor(Number(val) || 0));
-					text.setValue(String(num));
-					this.plugin.settings.maxAutosaveVersions = num;
-					await this.plugin.saveSettings();
+				text.onChange((val) => {
+					void (async () => {
+						const num = Math.max(0, Math.floor(Number(val) || 0));
+						text.setValue(String(num));
+						this.plugin.settings.maxAutosaveVersions = num;
+						await this.plugin.saveSettings();
+					})();
 				});
 			});
 
@@ -183,9 +195,11 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 				text.setValue(this.plugin.settings.allowedExtensions);
 				text.setPlaceholder("md");
 				text.inputEl.classList.add("sh-settings-input-text");
-				text.onChange(async (val) => {
-					this.plugin.settings.allowedExtensions = val.trim();
-					await this.plugin.saveSettings();
+				text.onChange((val) => {
+					void (async () => {
+						this.plugin.settings.allowedExtensions = val.trim();
+						await this.plugin.saveSettings();
+					})();
 				});
 			});
 	}
@@ -224,8 +238,8 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		const leaves =
 			this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
 		for (const leaf of leaves) {
-		if (leaf.view instanceof SaveHistoryView) {
-			leaf.view.refresh();
+			if (leaf.view instanceof SaveHistoryView) {
+				leaf.view.refresh();
 			}
 		}
 	}

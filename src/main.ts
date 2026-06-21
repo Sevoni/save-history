@@ -36,7 +36,7 @@ export class SaveHistoryPlugin extends Plugin {
   private lastActiveFile: TFile | null = null;
   private tabCloseEventRef: EventRef | null = null;
 
-  async onload() {
+  async onload(): Promise<void> {
     await this.loadSettings();
 
     const versioning = setupVersioning(this);
@@ -142,10 +142,10 @@ export class SaveHistoryPlugin extends Plugin {
                     const f = fileList[i];
                     const raw = await f.text();
                     try {
-                      const record = JSON.parse(raw);
-                      if (record.path && record.content && record.timestamp) {
+                      const record = JSON.parse(raw) as Record<string, unknown>;
+                      if (typeof record.path === "string" && typeof record.content === "string" && typeof record.timestamp === "string") {
                         const ts = new Date(record.timestamp).toISOString();
-                        await saveSnapshotContent(this, file.path, ts, record.content, record.reason || "import");
+                        await saveSnapshotContent(this, file.path, ts, record.content, typeof record.reason === "string" ? record.reason : "import");
                       } else {
                         const nameNoExt = f.name.replace(/\.[^.]+$/, "");
                         const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
@@ -217,7 +217,7 @@ export class SaveHistoryPlugin extends Plugin {
     this.lastActiveFile = null;
   }
 
-  async loadSettings() {
+  async loadSettings(): Promise<void> {
     const data = await this.loadData();
     if (data) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
@@ -225,7 +225,7 @@ export class SaveHistoryPlugin extends Plugin {
     setLanguage(this.settings.language);
   }
 
-  async saveSettings() {
+  async saveSettings(): Promise<void> {
     await this.saveData(this.settings as Record<string, unknown>);
   }
 

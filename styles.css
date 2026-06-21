@@ -582,3 +582,9 @@
 .sh-import-input {
   display: none;
 }
+
+/* ===== Dragging ===== */
+.sh-dragging {
+  position: fixed;
+  margin: 0;
+}
