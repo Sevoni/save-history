@@ -452,7 +452,7 @@ export class SaveHistoryView extends ItemView {
         const dotsBtn = nameRow.createEl("span", { text: "\u22EE", cls: "sh-snapshot-dots" });
         dotsBtn.title = translate("moreActions");
 
-        const doc = activeDocument as Document;
+        const doc = activeDocument;
         const dropdown = doc.createElement("div");
         dropdown.dataset.saveHistoryDropdown = "";
         dropdown.classList.add("sh-dropdown");
@@ -706,7 +706,7 @@ export class SaveHistoryView extends ItemView {
         const el = previewModal.contentEl;
         el.empty();
 
-        const modalContainer = (previewModal as unknown as { modalEl?: HTMLElement }).modalEl;
+        const modalContainer = previewModal.modalEl;
         if (modalContainer) {
           modalContainer.classList.add("sh-preview-modal");
         }
@@ -767,7 +767,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   private cleanupDropdowns() {
-    const doc = activeDocument as Document;
+    const doc = activeDocument;
     doc.querySelectorAll("[data-save-history-dropdown]").forEach(el => el.remove());
   }
 }
@@ -888,7 +888,7 @@ class DiffModal extends Modal {
     const el = this.contentEl;
     el.empty();
 
-    const modalContainer = (this as unknown as { modalEl?: HTMLElement }).modalEl;
+    const modalContainer = this.modalEl;
     if (modalContainer) {
       modalContainer.classList.add("sh-diff-modal");
     }
@@ -1034,7 +1034,7 @@ async function appendDiffRow(
 }
 
 function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSignal) {
-  const doc = activeDocument as Document;
+  const doc = activeDocument;
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
 
@@ -1088,7 +1088,7 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSigna
 }
 
 function makeResizable(el: HTMLElement, signal?: AbortSignal) {
-  const doc = activeDocument as Document;
+  const doc = activeDocument;
   const resizer = el.createDiv({ cls: "sh-resizer" });
   resizer.createDiv({ cls: "sh-resizer-line1" });
   resizer.createDiv({ cls: "sh-resizer-line2" });

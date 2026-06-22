@@ -208,7 +208,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		checked: boolean,
 		onChange: (val: boolean) => void
 	): HTMLElement {
-		const doc = activeDocument as Document;
+		const doc = activeDocument;
 
 		const container = doc.createElement("div");
 		container.classList.add("sh-toggle");

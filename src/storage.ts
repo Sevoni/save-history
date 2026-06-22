@@ -188,7 +188,7 @@ async function removeEmptySnapshotDirs(plugin: SaveHistoryPlugin, filePath: stri
     if (remainingFiles.length > 0 || remainingFolders.length > 0) break;
 
     try {
-      await adapter.rmdir(dir);
+      await adapter.rmdir(dir, false);
     } catch {
       break;
     }
@@ -317,7 +317,7 @@ export async function renameSnapshotFolder(adapter: DataAdapter, oldName: string
         if (files.length > 0 || folders.length > 0) break;
         const parent = dir.split("/").slice(0, -1).join("/");
         try {
-          await adapter.rmdir(dir);
+          await adapter.rmdir(dir, false);
         } catch {
           break;
         }
@@ -362,14 +362,14 @@ export async function deleteSnapshotDirForFile(
     const fullPath = p.replace(/\\/g, "/");
     const fullVaultPath = fullPath.startsWith(dirPath) ? fullPath : `${dirPath}/${fullPath}`;
     try {
-      await adapter.rmdir(fullVaultPath);
+      await adapter.rmdir(fullVaultPath, false);
     } catch {
       // ignore
     }
   }
 
   try {
-    await adapter.rmdir(dirPath);
+    await adapter.rmdir(dirPath, false);
   } catch {
     // ignore
   }
@@ -398,7 +398,7 @@ export async function removeEmptyParentDirs(plugin: SaveHistoryPlugin, dirPath: 
     if (!isDirEmpty) break;
 
     try {
-      await plugin.app.vault.adapter.rmdir(currentDir);
+      await plugin.app.vault.adapter.rmdir(currentDir, false);
     } catch {
       break;
     }

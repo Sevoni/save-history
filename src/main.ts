@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, TFolder, Menu, MenuItem, EventRef } from "obsidian";
+import { Notice, Plugin, TFile, TAbstractFile, Menu, MenuItem, EventRef } from "obsidian";
 import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
@@ -81,7 +81,7 @@ export class SaveHistoryPlugin extends Plugin {
     );
 
     this.registerEvent(
-      this.app.workspace.on("file-menu", (menu: Menu, file: TFile | TFolder) => {
+      this.app.workspace.on("file-menu", (menu: Menu, file: TAbstractFile, _source: string) => {
         if (!(file instanceof TFile)) return;
         if (!this.isExtensionAllowed(file.extension)) return;
 
@@ -130,7 +130,7 @@ export class SaveHistoryPlugin extends Plugin {
 
         menu.addItem((item: MenuItem) => {
           item.setTitle(translate("importVersions")).setIcon("upload").onClick(() => {
-            const doc = activeDocument as Document;
+            const doc = activeDocument;
             const input = doc.createElement("input");
             input.type = "file";
             input.multiple = true;
@@ -225,7 +225,7 @@ export class SaveHistoryPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const data = await this.loadData();
+    const data = (await this.loadData()) as Record<string, unknown> | null;
     if (data) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     }
@@ -233,7 +233,7 @@ export class SaveHistoryPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings as unknown as Record<string, unknown>);
+    await this.saveData(this.settings);
   }
 
   getActiveFile(): TFile | null {
