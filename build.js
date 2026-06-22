@@ -31,4 +31,3 @@ const outFile = path.join(rootDir, 'main.js');
     console.log('[save history] build done:', outFile);
   }
 })();
-

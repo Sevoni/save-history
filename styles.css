@@ -337,6 +337,11 @@
 }
 
 /* ===== Preview Modal ===== */
+.sh-preview-modal,
+.sh-diff-modal {
+  width: 780px;
+  max-width: 90vw;
+}
 .sh-preview-content img {
   max-width: 100%;
   height: auto;
