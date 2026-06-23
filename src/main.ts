@@ -163,7 +163,7 @@ export class SaveHistoryPlugin extends Plugin {
                     const f = fileList[i];
                     const raw = await f.text();
                     const nameOnly = f.name.replace(/^.*[\\/]/, "");
-                    const nameNoExt = nameOnly.replace(/\.[^.]+$/, "");
+                    const nameNoExt = nameOnly.replace(/\.[^.]+$/, "").replace(/\.[^.]+$/, "");
                     const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
                     if (tsMatch) {
                       const reason = tsMatch[1];
