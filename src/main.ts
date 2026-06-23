@@ -3,7 +3,7 @@ import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, translate, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent } from "./storage";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath } from "./storage";
 import { AutosaveManager } from "./autosave";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
@@ -13,6 +13,7 @@ export interface SaveHistorySettings {
   collapsedGroups: Record<string, boolean>;
   language: Language;
   snapshotFolder: string;
+  exportFolder: string;
   autosaveInterval: number;
   autosaveOnTabClose: boolean;
   maxAutosaveVersions: number;
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
   collapsedGroups: {},
   language: "en",
   snapshotFolder: ".versions(SH)",
+  exportFolder: "Exported versions",
   autosaveInterval: 0,
   autosaveOnTabClose: false,
   maxAutosaveVersions: 0,
@@ -88,42 +90,54 @@ export class SaveHistoryPlugin extends Plugin {
         menu.addItem((item: MenuItem) => {
           item.setTitle(translate("exportAllVersions")).setIcon("download").onClick(() => {
             void (async () => {
-              try {
-                const snapshots = await listSnapshotsForFile(this, file.path);
-                if (snapshots.length === 0) {
-                  this.toast(translate("exportNoVersions"));
-                  return;
-                }
-                interface DirHandle {
-                  getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<DirHandle>;
-                  getFileHandle(name: string, opts?: { create?: boolean }): Promise<FileHandle>;
-                }
-                interface FileHandle {
-                  createWritable(): Promise<{ write(data: string | BufferSource | Blob): Promise<void>; close(): Promise<void> }>;
-                }
+              const snapshots = await listSnapshotsForFile(this, file.path);
+              if (snapshots.length === 0) {
+                this.toast(translate("exportNoVersions"));
+                return;
+              }
+
+              if (!this.app.isMobile) {
                 const w = window as unknown as { showDirectoryPicker?: (opts: { mode: string }) => Promise<unknown> };
-                if (typeof w.showDirectoryPicker !== "function") {
-                  this.toast(translate("failedLoadSnapshot"));
-                  return;
-                }
-                const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" }) as unknown as DirHandle;
-                const baseName = file.name.replace(/\.[^.]+$/, "");
-                const folderHandle = await dirHandle.getDirectoryHandle(baseName, { create: true });
-                for (const snap of snapshots) {
-                  const d = new Date(snap.timestamp);
-                  const safeTs = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
-                  const fileName = `${snap.reason}_${safeTs}.${file.extension}`;
-                  const fh = await folderHandle.getFileHandle(fileName, { create: true });
-                  const writable = await fh.createWritable();
-                  await writable.write(snap.content);
-                  await writable.close();
-                }
-                this.toast(translate("exportAllSuccess", { path: baseName }));
-              } catch (e: unknown) {
-                if ((e as { name?: string })?.name !== "AbortError") {
-                  this.toast(translate("failedLoadSnapshot"));
+                if (typeof w.showDirectoryPicker === "function") {
+                  try {
+                    interface DirHandle {
+                      getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<DirHandle>;
+                      getFileHandle(name: string, opts?: { create?: boolean }): Promise<FileHandle>;
+                    }
+                    interface FileHandle {
+                      createWritable(): Promise<{ write(data: string | BufferSource | Blob): Promise<void>; close(): Promise<void> }>;
+                    }
+                    const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" }) as unknown as DirHandle;
+                    const baseName = file.name.replace(/\.[^.]+$/, "");
+                    const folderHandle = await dirHandle.getDirectoryHandle(baseName, { create: true });
+                    for (const snap of snapshots) {
+                      const d = new Date(snap.timestamp);
+                      const safeTs = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
+                      const fileName = `${snap.reason}_${safeTs}.${file.extension}`;
+                      const fh = await folderHandle.getFileHandle(fileName, { create: true });
+                      const writable = await fh.createWritable();
+                      await writable.write(snap.content);
+                      await writable.close();
+                    }
+                    this.toast(translate("exportAllSuccess", { path: baseName }));
+                    return;
+                  } catch (e: unknown) {
+                    if ((e as { name?: string })?.name === "AbortError") return;
+                  }
                 }
               }
+
+              const baseName = file.name.replace(/\.[^.]+$/, "");
+              const exportDir = getExportFolderPath(this);
+              const adapter = this.app.vault.adapter;
+              await ensureExportDir(this);
+              for (const snap of snapshots) {
+                const d = new Date(snap.timestamp);
+                const safeTs = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
+                const fileName = `${baseName}_${snap.reason}_${safeTs}.${file.extension}`;
+                await adapter.write(`${exportDir}/${fileName}`, snap.content);
+              }
+              this.toast(translate("exportAllSuccess", { path: exportDir }));
             })();
           });
         });
@@ -148,31 +162,24 @@ export class SaveHistoryPlugin extends Plugin {
                   for (let i = 0; i < fileList.length; i++) {
                     const f = fileList[i];
                     const raw = await f.text();
-                    try {
-                      const record = JSON.parse(raw) as Record<string, unknown>;
-                      if (typeof record.path === "string" && typeof record.content === "string" && typeof record.timestamp === "string") {
-                        const ts = new Date(record.timestamp).toISOString();
-                        await saveSnapshotContent(this, file.path, ts, record.content, typeof record.reason === "string" ? record.reason : "import");
-                      } else {
-                        const nameNoExt = f.name.replace(/\.[^.]+$/, "");
-                        const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
-                        if (tsMatch) {
-                          const reason = tsMatch[1];
-                          const ts = new Date(tsMatch[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3")).toISOString();
-                          await saveSnapshotContent(this, file.path, ts, raw, reason);
+                    const nameOnly = f.name.replace(/^.*[\\/]/, "");
+                    const nameNoExt = nameOnly.replace(/\.[^.]+$/, "");
+                    const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
+                    if (tsMatch) {
+                      const reason = tsMatch[1];
+                      const ts = new Date(tsMatch[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3")).toISOString();
+                      await saveSnapshotContent(this, file.path, ts, raw, reason);
+                    } else {
+                      try {
+                        const record = JSON.parse(raw) as Record<string, unknown>;
+                        if (typeof record.path === "string" && typeof record.content === "string" && typeof record.timestamp === "string") {
+                          const ts = new Date(record.timestamp).toISOString();
+                          await saveSnapshotContent(this, file.path, ts, record.content, typeof record.reason === "string" ? record.reason : "import");
                         } else {
                           const ts = new Date(now + i).toISOString();
                           await saveSnapshotContent(this, file.path, ts, raw, nameNoExt);
                         }
-                      }
-                    } catch {
-                      const nameNoExt = f.name.replace(/\.[^.]+$/, "");
-                      const tsMatch = nameNoExt.match(/^(.+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})$/);
-                      if (tsMatch) {
-                        const reason = tsMatch[1];
-                        const ts = new Date(tsMatch[2].replace(/T(\d{2})-(\d{2})-(\d{2})$/, "T$1:$2:$3")).toISOString();
-                        await saveSnapshotContent(this, file.path, ts, raw, reason);
-                      } else {
+                      } catch {
                         const ts = new Date(now + i).toISOString();
                         await saveSnapshotContent(this, file.path, ts, raw, nameNoExt);
                       }

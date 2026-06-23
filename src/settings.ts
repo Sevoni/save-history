@@ -1,7 +1,7 @@
 import { PluginSettingTab, Setting, type Plugin } from "obsidian";
 import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { translate, setLanguage, type Language } from "./locale";
-import { renameSnapshotFolder } from "./storage";
+import { renameSnapshotFolder, renameExportFolder } from "./storage";
 import { AutosaveManager } from "./autosave";
 import type { SaveHistorySettings } from "./main";
 import type { GroupByMode } from "./main";
@@ -116,6 +116,54 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 					this.refreshSidebarViews();
 				} else {
 					this.plugin.toast(translate("snapshotFolderRenameFailed"));
+				}
+			})();
+		});
+
+		// Export folder
+		new Setting(wrapper)
+			.setName(translate("exportFolder"))
+			.setDesc(translate("exportFolderDesc"));
+
+		const exportFolderRow = wrapper.createDiv({ cls: "sh-settings-row" });
+		const exportFolderInput = exportFolderRow.createEl("input", {
+			cls: "sh-settings-input",
+			attr: { type: "text" },
+		}) as HTMLInputElement;
+		exportFolderInput.value = this.plugin.settings.exportFolder;
+
+		const exportFolderSaveBtn = exportFolderRow.createEl("button", {
+			text: translate("save"),
+			cls: "sh-settings-btn",
+		});
+		exportFolderSaveBtn.addEventListener("click", () => {
+			void (async () => {
+				const newName = exportFolderInput.value.trim();
+				if (!newName) return;
+				if (newName === this.plugin.settings.exportFolder) return;
+
+				if (
+					/[<>:"|?*]/.test(newName) ||
+					newName.startsWith("/") ||
+					newName.endsWith("/") ||
+					newName.includes("..")
+				) {
+					this.plugin.toast(translate("exportFolderRenameFailed"));
+					return;
+				}
+
+				const oldName = this.plugin.settings.exportFolder;
+				const success = await renameExportFolder(
+					this.plugin.app.vault.adapter,
+					oldName,
+					newName
+				);
+				if (success) {
+					this.plugin.settings.exportFolder = newName;
+					await this.plugin.saveSettings();
+					this.plugin.toast(translate("exportFolderRenamed"));
+				} else {
+					this.plugin.toast(translate("exportFolderRenameFailed"));
 				}
 			})();
 		});

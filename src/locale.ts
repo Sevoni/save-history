@@ -91,6 +91,12 @@ type TranslationKeys = {
   importSuccess: string;
   importNoFiles: string;
 
+  // Export folder
+  exportFolder: string;
+  exportFolderDesc: string;
+  exportFolderRenamed: string;
+  exportFolderRenameFailed: string;
+
   // Diff modal
   diff: string;
   noDifferences: string;
@@ -209,6 +215,11 @@ const en: TranslationKeys = {
   importSuccess: "Versions imported.",
   importNoFiles: "No files selected.",
 
+  exportFolder: "Export folder",
+  exportFolderDesc: "Folder in the vault where versions are exported when the browser folder picker is unavailable.",
+  exportFolderRenamed: "Export folder renamed successfully.",
+  exportFolderRenameFailed: "Failed to rename export folder.",
+
   diff: "Diff",
   noDifferences: "No differences",
   added: "+{n} added",
@@ -322,6 +333,11 @@ const ru: TranslationKeys = {
   importVersions: "Импорт версий\u2026",
   importSuccess: "Версии импортированы.",
   importNoFiles: "Файлы не выбраны.",
+
+  exportFolder: "Папка экспорта",
+  exportFolderDesc: "Папка в хранилище, куда экспортируются версии, если выбор папки браузером недоступен.",
+  exportFolderRenamed: "Папка экспорта успешно переименована.",
+  exportFolderRenameFailed: "Не удалось переименовать папку экспорта.",
 
   diff: "Сравнение",
   noDifferences: "Различий нет",

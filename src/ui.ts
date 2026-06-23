@@ -1,6 +1,6 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
-import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup } from "./storage";
+import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 import { translate } from "./locale";
@@ -529,6 +529,14 @@ export class SaveHistoryView extends ItemView {
             const d = new Date(snap.timestamp);
             const ts = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
             const defaultName = `${baseName}_${ts}.${ext}`;
+
+            if (this.plugin.app.isMobile) {
+              const exportDir = getExportFolderPath(this.plugin);
+              await ensureExportDir(this.plugin);
+              await this.plugin.app.vault.adapter.write(`${exportDir}/${defaultName}.${ext}`, snapContent.content);
+              this.plugin.toast(translate("exportSuccess"));
+              return;
+            }
 
             const blob = new Blob([snapContent.content], { type: "text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
