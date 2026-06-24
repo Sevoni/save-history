@@ -145,11 +145,18 @@
   padding: 6px 0;
   border-bottom: 1px solid var(--background-modifier-border);
 }
+.sh-bulk-bar > button {
+  flex: 1;
+}
 .sh-bulk-select-btn {
   font-size: 0.75em;
   padding: 3px 6px;
 }
 .sh-bulk-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
   font-size: 0.8em;
   color: var(--text-muted);
 }
