@@ -95,7 +95,7 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   height: 100%;
   overflow-y: auto;
 }
@@ -120,6 +120,7 @@
 }
 .sh-save-btn {
   width: 100%;
+  min-height: 30px;
 }
 .sh-diff-btn-row {
   display: flex;
@@ -128,10 +129,39 @@
 }
 .sh-diff-toggle-btn {
   flex: 1 1 100px;
+  min-height: 30px;
 }
 .sh-diff-go-btn {
   flex: 1 1 100px;
   font-weight: 600;
+}
+
+/* ===== Bulk Delete Bar ===== */
+.sh-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.sh-bulk-select-btn {
+  font-size: 0.75em;
+  padding: 3px 6px;
+}
+.sh-bulk-count {
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+.sh-bulk-delete-btn {
+  background-color: var(--background-modifier-error);
+  color: white;
+  font-size: 0.8em;
+  padding: 3px 8px;
+}
+.sh-bulk-cancel-btn {
+  font-size: 0.8em;
+  padding: 3px 8px;
 }
 .sh-diff-list {
   display: flex;
@@ -216,6 +246,13 @@
   padding: 4px 6px;
   border-radius: 4px;
   user-select: none;
+}
+.sh-bulk-checkbox {
+  margin-left: auto;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 .sh-snapshot-time {
   font-size: 0.8em;

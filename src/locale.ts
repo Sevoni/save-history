@@ -50,6 +50,14 @@ type TranslationKeys = {
   no: string;
   versionDeleted: string;
   failedDeleteVersion: string;
+
+  // Bulk delete
+  bulkDeleteSelected: string;
+  bulkDeleteConfirm: string;
+  bulkDeleteSuccess: string;
+  bulkDeleteFailed: string;
+  selectAll: string;
+  deselectAll: string;
   failedLoadSnapshot: string;
   failedLoadSnapshotContent: string;
   versionRestored: string;
@@ -178,6 +186,13 @@ const en: TranslationKeys = {
   no: "No",
   versionDeleted: "Version deleted.",
   failedDeleteVersion: "Failed to delete version.",
+
+  bulkDeleteSelected: "Delete Selected",
+  bulkDeleteConfirm: "Delete selected versions?",
+  bulkDeleteSuccess: "{n} version(s) deleted.",
+  bulkDeleteFailed: "Failed to delete some versions.",
+  selectAll: "Select All",
+  deselectAll: "Deselect All",
   failedLoadSnapshot: "Failed to load snapshot.",
   failedLoadSnapshotContent: "Failed to load snapshot content.",
   versionRestored: "Version restored. Current state backed up below.",
@@ -297,6 +312,13 @@ const ru: TranslationKeys = {
   no: "Нет",
   versionDeleted: "Версия удалена.",
   failedDeleteVersion: "Не удалось удалить версию.",
+
+  bulkDeleteSelected: "Удалить выбранные",
+  bulkDeleteConfirm: "Удалить выбранные версии?",
+  bulkDeleteSuccess: "Удалено версий: {n}.",
+  bulkDeleteFailed: "Не удалось удалить некоторые версии.",
+  selectAll: "Выбрать все",
+  deselectAll: "Снять выбор",
   failedLoadSnapshot: "Не удалось загрузить снимок.",
   failedLoadSnapshotContent: "Не удалось загрузить содержимое снимка.",
   versionRestored: "Версия восстановлена. Текущее состояние сохранено ниже.",

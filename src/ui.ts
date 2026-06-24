@@ -149,6 +149,8 @@ export class SaveHistoryView extends ItemView {
   private versioning: Versioning;
   private diffMode: boolean = false;
   private diffSelection: (SnapshotRecord & { filePath: string })[] = [];
+  private bulkDeleteMode: boolean = false;
+  private bulkDeleteSelection: Set<string> = new Set();
 
   constructor(leaf: WorkspaceLeaf, plugin: SaveHistoryPlugin, versioning: Versioning) {
     super(leaf);
@@ -241,6 +243,57 @@ export class SaveHistoryView extends ItemView {
         new DiffModal(this.plugin, this.diffSelection[1], this.diffSelection[0], recOld.content, recNew.content).open();
         this.diffMode = false;
         this.diffSelection = [];
+        this.refresh();
+      };
+    }
+
+    if (this.bulkDeleteMode) {
+      const bulkBar = wrapper.createDiv({ cls: "sh-bulk-bar" });
+
+      const selectAllBtn = bulkBar.createEl("button", { text: translate("selectAll"), cls: "sh-bulk-select-btn" });
+      selectAllBtn.onclick = () => {
+        for (const snap of snapshots) {
+          this.bulkDeleteSelection.add(snap.filePath);
+        }
+        this.refresh();
+      };
+
+      const deselectAllBtn = bulkBar.createEl("button", { text: translate("deselectAll"), cls: "sh-bulk-select-btn" });
+      deselectAllBtn.onclick = () => {
+        this.bulkDeleteSelection.clear();
+        this.refresh();
+      };
+
+      const countSpan = bulkBar.createEl("span", { cls: "sh-bulk-count" });
+      countSpan.textContent = `${this.bulkDeleteSelection.size}`;
+
+      const deleteSelectedBtn = bulkBar.createEl("button", { text: translate("bulkDeleteSelected"), cls: "sh-bulk-delete-btn" });
+      deleteSelectedBtn.onclick = async () => {
+        if (this.bulkDeleteSelection.size === 0) {
+          this.plugin.toast(translate("noSavedVersions"));
+          return;
+        }
+        const count = this.bulkDeleteSelection.size;
+        let deleted = 0;
+        for (const filePath of this.bulkDeleteSelection) {
+          const success = await deleteSnapshotFile(this.plugin, filePath);
+          if (success) deleted++;
+        }
+        if (deleted > 0) {
+          this.plugin.toast(translate("bulkDeleteSuccess", { n: deleted }));
+        }
+        if (deleted < count) {
+          this.plugin.toast(translate("bulkDeleteFailed"));
+        }
+        this.bulkDeleteMode = false;
+        this.bulkDeleteSelection.clear();
+        this.refresh();
+      };
+
+      const cancelBulkBtn = bulkBar.createEl("button", { text: translate("cancel"), cls: "sh-bulk-cancel-btn" });
+      cancelBulkBtn.onclick = () => {
+        this.bulkDeleteMode = false;
+        this.bulkDeleteSelection.clear();
         this.refresh();
       };
     }
@@ -448,7 +501,22 @@ export class SaveHistoryView extends ItemView {
         nameRow.createEl("span", { text: ` [${selectionLabel}]`, cls: "sh-snapshot-sel-label" });
       }
 
-      if (!this.diffMode) {
+      if (this.bulkDeleteMode) {
+        const checkbox = nameRow.createEl("input", { cls: "sh-bulk-checkbox" });
+        checkbox.type = "checkbox";
+        checkbox.checked = this.bulkDeleteSelection.has(snap.filePath);
+        checkbox.onclick = (e) => {
+          e.stopPropagation();
+          if (checkbox.checked) {
+            this.bulkDeleteSelection.add(snap.filePath);
+          } else {
+            this.bulkDeleteSelection.delete(snap.filePath);
+          }
+          this.refresh();
+        };
+      }
+
+      if (!this.diffMode && !this.bulkDeleteMode) {
         const dotsBtn = nameRow.createEl("span", { text: "\u22EE", cls: "sh-snapshot-dots" });
         dotsBtn.title = translate("moreActions");
 
@@ -555,7 +623,10 @@ export class SaveHistoryView extends ItemView {
 
         addMenuItem(translate("delete"), () => {
           closeDropdown();
-          showDeleteConfirm();
+          this.bulkDeleteMode = true;
+          this.bulkDeleteSelection.clear();
+          this.bulkDeleteSelection.add(snap.filePath);
+          this.refresh();
         });
 
         doc.body.appendChild(dropdown);
@@ -657,31 +728,11 @@ export class SaveHistoryView extends ItemView {
       return;
     }
 
+    if (this.bulkDeleteMode) {
+      return;
+    }
+
     const actions = item.createDiv({ cls: "sh-snapshot-actions" });
-
-    const showDeleteConfirm = () => {
-      actions.empty();
-      actions.createEl("span", { text: translate("deleteConfirm"), cls: "sh-delete-confirm-text" });
-
-      const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
-      yesBtn.onclick = async (ev) => {
-        ev.stopPropagation();
-        const success = await deleteSnapshotFile(this.plugin, snap.filePath);
-        if (success) {
-          this.plugin.toast(translate("versionDeleted"));
-          this.refresh();
-        } else {
-          this.plugin.toast(translate("failedDeleteVersion"));
-          this.refresh();
-        }
-      };
-
-      const noBtn = actions.createEl("button", { text: translate("no"), cls: "sh-delete-no-btn" });
-      noBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        this.refresh();
-      };
-    };
 
     const restoreBtn = actions.createEl("button", { text: translate("restore"), cls: "sh-snapshot-restore-btn" });
     restoreBtn.onclick = async () => {
