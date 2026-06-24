@@ -152,14 +152,7 @@
   font-size: 0.75em;
   padding: 3px 6px;
 }
-.sh-bulk-count {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  font-size: 0.8em;
-  color: var(--text-muted);
-}
+
 .sh-bulk-delete-btn {
   background-color: var(--background-modifier-error);
   color: white;
@@ -257,8 +250,8 @@
 .sh-bulk-checkbox {
   margin-left: auto;
   cursor: pointer;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 .sh-snapshot-time {

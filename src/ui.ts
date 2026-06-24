@@ -264,10 +264,11 @@ export class SaveHistoryView extends ItemView {
         this.refresh();
       };
 
-      const countSpan = bulkBar.createEl("span", { cls: "sh-bulk-count" });
-      countSpan.textContent = `${this.bulkDeleteSelection.size}`;
-
-      const deleteSelectedBtn = bulkBar.createEl("button", { text: translate("bulkDeleteSelected"), cls: "sh-bulk-delete-btn" });
+      const deleteSelectedBtn = bulkBar.createEl("button", { cls: "sh-bulk-delete-btn" });
+      const delCount = this.bulkDeleteSelection.size;
+      deleteSelectedBtn.textContent = delCount > 0
+        ? `${translate("bulkDeleteSelected")} (${delCount})`
+        : translate("bulkDeleteSelected");
       deleteSelectedBtn.onclick = async () => {
         if (this.bulkDeleteSelection.size === 0) {
           this.plugin.toast(translate("noSavedVersions"));
