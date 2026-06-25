@@ -11,10 +11,20 @@ export class AutosaveManager {
   private versioning: Versioning;
   private intervalId: number | null = null;
   private lastAutosaveByFile: Map<string, number> = new Map();
+  private readonly TIMER_TOLERANCE_MS = 500;
 
   constructor(plugin: SaveHistoryPlugin, versioning: Versioning) {
     this.plugin = plugin;
     this.versioning = versioning;
+  }
+
+  private gcd(a: number, b: number): number {
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b) {
+      [a, b] = [b, a % b];
+    }
+    return a;
   }
 
   start() {
@@ -23,13 +33,19 @@ export class AutosaveManager {
     let interval = this.plugin.settings.autosaveInterval;
     for (const per of Object.values(this.plugin.settings.perFileSettings)) {
       if (per.autosaveInterval !== undefined && per.autosaveInterval > 0) {
-        if (interval <= 0 || per.autosaveInterval < interval) {
+        if (interval <= 0) {
           interval = per.autosaveInterval;
+        } else {
+          interval = this.gcd(interval, per.autosaveInterval);
         }
       }
     }
-    if (interval <= 0) return;
+    if (interval <= 0) {
+      console.log("[SH autosave] start: no active interval, stopped");
+      return;
+    }
 
+    console.log("[SH autosave] start: tickInterval=" + interval + "min, perFileCount=" + Object.keys(this.plugin.settings.perFileSettings).length);
     const ms = interval * 60 * 1000;
     const id = window.setInterval(() => this.onTick(), ms);
     this.intervalId = id;
@@ -40,11 +56,14 @@ export class AutosaveManager {
     if (this.intervalId !== null) {
       window.clearInterval(this.intervalId);
       this.intervalId = null;
+      console.log("[SH autosave] stop");
     }
   }
 
   restart() {
+    console.log("[SH autosave] restart: lastAutosaveByFile.size=" + this.lastAutosaveByFile.size);
     this.stop();
+    this.lastAutosaveByFile.clear();
     this.start();
   }
 
@@ -67,13 +86,19 @@ export class AutosaveManager {
     const now = Date.now();
     if (!this.lastAutosaveByFile.has(file.path)) {
       this.lastAutosaveByFile.set(file.path, now);
+      console.log("[SH autosave] tick: file=\"" + file.path + "\" effInterval=" + effectiveInterval + " action=REGISTER");
       return;
     }
     const lastSave = this.lastAutosaveByFile.get(file.path)!;
     const intervalMs = effectiveInterval * 60 * 1000;
-    if (now - lastSave < intervalMs) return;
+    const elapsedSec = Math.round((now - lastSave) / 1000);
+    if (now - lastSave + this.TIMER_TOLERANCE_MS < intervalMs) {
+      console.log("[SH autosave] tick: file=\"" + file.path + "\" effInterval=" + effectiveInterval + " elapsed=" + elapsedSec + "s action=SKIP (needs " + (effectiveInterval * 60) + "s)");
+      return;
+    }
 
     this.lastAutosaveByFile.set(file.path, now);
+    console.log("[SH autosave] tick: file=\"" + file.path + "\" effInterval=" + effectiveInterval + " elapsed=" + elapsedSec + "s action=SAVE");
     this.versioning.saveNowForFile(file, "autosave").then(async (result) => {
       if (result === "saved") {
         await this.enforceMaxAutosaves(file.path);
