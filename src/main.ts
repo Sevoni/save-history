@@ -8,6 +8,13 @@ import { AutosaveManager } from "./autosave";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
 
+export interface PerFileSettings {
+  autosaveInterval?: number;
+  autosaveOnTabClose?: boolean;
+  maxAutosaveVersions?: number;
+  groupBy?: GroupByMode;
+}
+
 export interface SaveHistorySettings {
   groupBy: GroupByMode;
   collapsedGroups: Record<string, boolean>;
@@ -18,6 +25,7 @@ export interface SaveHistorySettings {
   autosaveOnTabClose: boolean;
   maxAutosaveVersions: number;
   allowedExtensions: string;
+  perFileSettings: Record<string, PerFileSettings>;
 }
 
 const DEFAULT_SETTINGS: SaveHistorySettings = {
@@ -30,6 +38,7 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
   autosaveOnTabClose: false,
   maxAutosaveVersions: 0,
   allowedExtensions: "",
+  perFileSettings: {},
 };
 
 export class SaveHistoryPlugin extends Plugin {
@@ -53,9 +62,7 @@ export class SaveHistoryPlugin extends Plugin {
     this.autosaveManager = new AutosaveManager(this, versioning);
     this.autosaveManager.start();
 
-    if (this.settings.autosaveOnTabClose) {
-      this.registerTabCloseListener();
-    }
+    this.registerTabCloseListener();
 
     this.addSettingTab(new SaveHistorySettingTab(this.app, this));
 
@@ -217,7 +224,7 @@ export class SaveHistoryPlugin extends Plugin {
     this.tabCloseEventRef = this.app.workspace.on("active-leaf-change", () => {
       const file = this.getActiveFile();
       if (this.lastActiveFile && this.lastActiveFile !== file) {
-        void this.autosaveManager?.saveOnTabClose(this.lastActiveFile);
+        this.autosaveManager?.saveOnTabClose(this.lastActiveFile).catch(() => {});
       }
       this.lastActiveFile = file;
     });
@@ -226,6 +233,7 @@ export class SaveHistoryPlugin extends Plugin {
 
   unregisterTabCloseListener() {
     if (this.tabCloseEventRef) {
+      this.app.workspace.offref(this.tabCloseEventRef);
       this.tabCloseEventRef = null;
     }
     this.lastActiveFile = null;
@@ -241,6 +249,58 @@ export class SaveHistoryPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  getFileSettings(filePath: string): PerFileSettings {
+    return this.settings.perFileSettings[filePath] || {};
+  }
+
+  async setFileSetting<K extends keyof PerFileSettings>(filePath: string, key: K, value: PerFileSettings[K]): Promise<void> {
+    if (!this.settings.perFileSettings[filePath]) {
+      this.settings.perFileSettings[filePath] = {};
+    }
+    this.settings.perFileSettings[filePath][key] = value;
+    await this.saveSettings();
+  }
+
+  async clearFileSetting(filePath: string, key: keyof PerFileSettings): Promise<void> {
+    const per = this.settings.perFileSettings[filePath];
+    if (per) {
+      delete per[key];
+      if (Object.keys(per).length === 0) {
+        delete this.settings.perFileSettings[filePath];
+      }
+      await this.saveSettings();
+    }
+  }
+
+  async resetAllFileSettings(filePath: string): Promise<void> {
+    delete this.settings.perFileSettings[filePath];
+    await this.saveSettings();
+  }
+
+  getEffectiveAutosaveInterval(filePath: string): number {
+    const per = this.getFileSettings(filePath);
+    if (per.autosaveInterval !== undefined) return per.autosaveInterval;
+    return this.settings.autosaveInterval;
+  }
+
+  getEffectiveAutosaveOnTabClose(filePath: string): boolean {
+    const per = this.getFileSettings(filePath);
+    if (per.autosaveOnTabClose !== undefined) return per.autosaveOnTabClose;
+    return this.settings.autosaveOnTabClose;
+  }
+
+  getEffectiveMaxAutosaveVersions(filePath: string): number {
+    const per = this.getFileSettings(filePath);
+    if (per.maxAutosaveVersions !== undefined) return per.maxAutosaveVersions;
+    return this.settings.maxAutosaveVersions;
+  }
+
+  getEffectiveGroupBy(filePath: string): GroupByMode {
+    const per = this.getFileSettings(filePath);
+    if (per.groupBy !== undefined) return per.groupBy;
+    return this.settings.groupBy;
   }
 
   getActiveFile(): TFile | null {

@@ -1,5 +1,5 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component } from "obsidian";
-import { SaveHistoryPlugin, type GroupByMode } from "./main";
+import { SaveHistoryPlugin, type GroupByMode, type PerFileSettings } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
@@ -184,28 +184,243 @@ export class SaveHistoryView extends ItemView {
 
     headerRow.createEl("h3", { text: translate("viewTitle"), cls: "sh-header-title" });
 
-    const groupSelect = headerRow.createEl("select", { cls: "sh-group-select" });
-    const opts: { value: GroupByMode; label: string }[] = [
-      { value: "none", label: translate("groupNone") },
-      { value: "day", label: translate("groupDay") },
-      { value: "week", label: translate("groupWeek") },
-      { value: "month", label: translate("groupMonth") },
-      { value: "year", label: translate("groupYear") },
-    ];
-    for (const o of opts) {
-      const opt = groupSelect.createEl("option", { text: o.label });
-      opt.value = o.value;
-      if (this.plugin.settings.groupBy === o.value) {
-        opt.selected = true;
-      }
-    }
-    groupSelect.onchange = async () => {
-      this.plugin.settings.groupBy = groupSelect.value as GroupByMode;
-      await this.plugin.saveSettings();
-      this.refresh();
+    const activeFile = this.plugin.getActiveFile();
+
+    const doc = activeDocument;
+
+    const gearBtn = headerRow.createEl("span", { text: "\u2699", cls: "sh-gear-btn" });
+
+    const settingsDropdown = doc.createElement("div");
+    settingsDropdown.dataset.saveHistoryDropdown = "";
+    settingsDropdown.classList.add("sh-dropdown", "sh-settings-dropdown");
+
+    const closeSettingsDropdown = () => {
+      settingsDropdown.classList.remove("is-open");
+      doc.removeEventListener("mousedown", onOutsideSettingsMouseDown, true);
     };
 
-    const activeFile = this.plugin.getActiveFile();
+    const onOutsideSettingsMouseDown = (e: MouseEvent) => {
+      if (!settingsDropdown.contains(e.target as Node) && !gearBtn.contains(e.target as Node)) {
+        closeSettingsDropdown();
+      }
+    };
+
+    const buildSettingsDropdown = () => {
+      settingsDropdown.empty();
+
+      const currentGroupBy = activeFile
+        ? this.plugin.getEffectiveGroupBy(activeFile.path)
+        : this.plugin.settings.groupBy;
+
+      const globalGroupBy = this.plugin.settings.groupBy;
+
+      const groupOpts: { value: GroupByMode; label: string }[] = [
+        { value: "none", label: translate("groupNone") },
+        { value: "day", label: translate("groupDay") },
+        { value: "week", label: translate("groupWeek") },
+        { value: "month", label: translate("groupMonth") },
+        { value: "year", label: translate("groupYear") },
+      ];
+
+      const groupHeader = settingsDropdown.createDiv({ cls: "sh-menu-group-header" });
+      groupHeader.textContent = translate("groupVersionsBy");
+
+      if (activeFile) {
+        const isCustomGroup = this.plugin.getFileSettings(activeFile.path).groupBy !== undefined;
+        const groupGlobalItem = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const groupGlobalCheck = groupGlobalItem.createSpan({ cls: "sh-menu-check" });
+        groupGlobalCheck.textContent = !isCustomGroup ? "\u2713" : "";
+        groupGlobalItem.createSpan({ text: `${translate("useGlobal")} (${translate("group" + globalGroupBy.charAt(0).toUpperCase() + globalGroupBy.slice(1))})` });
+        groupGlobalItem.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.clearFileSetting(activeFile.path, "groupBy");
+          buildSettingsDropdown();
+          this.refreshList(wrapper, activeFile);
+        });
+      }
+
+      for (const o of groupOpts) {
+        const item = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const check = item.createSpan({ cls: "sh-menu-check" });
+        check.textContent = currentGroupBy === o.value ? "\u2713" : "";
+        item.createSpan({ text: o.label });
+        item.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (activeFile) {
+            await this.plugin.setFileSetting(activeFile.path, "groupBy", o.value);
+          } else {
+            this.plugin.settings.groupBy = o.value;
+            await this.plugin.saveSettings();
+          }
+          buildSettingsDropdown();
+          this.refreshList(wrapper, activeFile);
+        });
+      }
+
+      if (activeFile) {
+        const sep1 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+
+        const perSettings = this.plugin.getFileSettings(activeFile.path);
+
+        const intervalHeader = settingsDropdown.createDiv({ cls: "sh-menu-group-header" });
+        const effectiveInterval = this.plugin.getEffectiveAutosaveInterval(activeFile.path);
+        const intervalLabel = effectiveInterval <= 0
+          ? translate("off")
+          : `${effectiveInterval} ${translate("minutes")}`;
+        intervalHeader.textContent = `${translate("autosaveInterval")}: ${intervalLabel}`;
+
+        const isCustomInterval = perSettings.autosaveInterval !== undefined;
+        const globalInterval = this.plugin.settings.autosaveInterval;
+
+        const intervalItemGlobal = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const intervalCheckGlobal = intervalItemGlobal.createSpan({ cls: "sh-menu-check" });
+        intervalCheckGlobal.textContent = !isCustomInterval ? "\u2713" : "";
+        intervalItemGlobal.createSpan({ text: `${translate("useGlobal")} (${globalInterval <= 0 ? translate("off") : `${globalInterval} ${translate("minutes")}`})` });
+        intervalItemGlobal.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.clearFileSetting(activeFile.path, "autosaveInterval");
+          this.plugin.autosaveManager?.restart();
+          buildSettingsDropdown();
+        });
+
+        const intervalInputRow = settingsDropdown.createDiv({ cls: "sh-menu-input-row" });
+        intervalInputRow.createSpan({ text: `${translate("minutes")}: ` });
+        const intervalInput = intervalInputRow.createEl("input", {
+          cls: "sh-menu-input",
+          attr: { type: "number", min: "0", value: String(effectiveInterval) }
+        });
+        const intervalApplyBtn = intervalInputRow.createEl("button", { text: "\u2713", cls: "sh-menu-apply-btn" });
+        const applyInterval = async () => {
+          const val = Math.max(0, Math.floor(Number(intervalInput.value) || 0));
+          await this.plugin.setFileSetting(activeFile.path, "autosaveInterval", val);
+          this.plugin.autosaveManager?.restart();
+          buildSettingsDropdown();
+        };
+        intervalApplyBtn.addEventListener("click", (e) => { e.stopPropagation(); void applyInterval(); });
+        intervalInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); void applyInterval(); } });
+        intervalInput.addEventListener("click", (e) => e.stopPropagation());
+
+        const sep2 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+
+        const effectiveTabClose = this.plugin.getEffectiveAutosaveOnTabClose(activeFile.path);
+        const isCustomTabClose = perSettings.autosaveOnTabClose !== undefined;
+        const globalTabClose = this.plugin.settings.autosaveOnTabClose;
+
+        const tabHeader = settingsDropdown.createDiv({ cls: "sh-menu-group-header" });
+        tabHeader.textContent = `${translate("autosaveOnTabClose")}: ${effectiveTabClose ? translate("on") : translate("off")}`;
+
+        const tabUseGlobal = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const tabCheckGlobal = tabUseGlobal.createSpan({ cls: "sh-menu-check" });
+        tabCheckGlobal.textContent = !isCustomTabClose ? "\u2713" : "";
+        tabUseGlobal.createSpan({ text: `${translate("useGlobal")} (${globalTabClose ? translate("on") : translate("off")})` });
+        tabUseGlobal.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.clearFileSetting(activeFile.path, "autosaveOnTabClose");
+          buildSettingsDropdown();
+        });
+
+        const tabOn = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const tabCheckOn = tabOn.createSpan({ cls: "sh-menu-check" });
+        tabCheckOn.textContent = isCustomTabClose && effectiveTabClose === true ? "\u2713" : "";
+        tabOn.createSpan({ text: translate("on") });
+        tabOn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", true);
+          buildSettingsDropdown();
+        });
+
+        const tabOff = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const tabCheckOff = tabOff.createSpan({ cls: "sh-menu-check" });
+        tabCheckOff.textContent = isCustomTabClose && effectiveTabClose === false ? "\u2713" : "";
+        tabOff.createSpan({ text: translate("off") });
+        tabOff.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", false);
+          buildSettingsDropdown();
+        });
+
+        const sep3 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+
+        const effectiveMax = this.plugin.getEffectiveMaxAutosaveVersions(activeFile.path);
+        const isCustomMax = perSettings.maxAutosaveVersions !== undefined;
+        const globalMax = this.plugin.settings.maxAutosaveVersions;
+
+        const maxHeader = settingsDropdown.createDiv({ cls: "sh-menu-group-header" });
+        maxHeader.textContent = `${translate("maxAutosaveVersions")}: ${effectiveMax <= 0 ? translate("unlimited") : String(effectiveMax)}`;
+
+        const maxUseGlobal = settingsDropdown.createDiv({ cls: "sh-menu-item" });
+        const maxCheckGlobal = maxUseGlobal.createSpan({ cls: "sh-menu-check" });
+        maxCheckGlobal.textContent = !isCustomMax ? "\u2713" : "";
+        maxUseGlobal.createSpan({ text: `${translate("useGlobal")} (${globalMax <= 0 ? translate("unlimited") : String(globalMax)})` });
+        maxUseGlobal.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await this.plugin.clearFileSetting(activeFile.path, "maxAutosaveVersions");
+          buildSettingsDropdown();
+        });
+
+        const maxInputRow = settingsDropdown.createDiv({ cls: "sh-menu-input-row" });
+        maxInputRow.createSpan({ text: `${translate("maxAutosaveVersions")}: ` });
+        const maxInput = maxInputRow.createEl("input", {
+          cls: "sh-menu-input",
+          attr: { type: "number", min: "0", value: String(effectiveMax) }
+        });
+        const maxApplyBtn = maxInputRow.createEl("button", { text: "\u2713", cls: "sh-menu-apply-btn" });
+        const applyMax = async () => {
+          const val = Math.max(0, Math.floor(Number(maxInput.value) || 0));
+          await this.plugin.setFileSetting(activeFile.path, "maxAutosaveVersions", val);
+          buildSettingsDropdown();
+        };
+        maxApplyBtn.addEventListener("click", (e) => { e.stopPropagation(); void applyMax(); });
+        maxInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); void applyMax(); } });
+        maxInput.addEventListener("click", (e) => e.stopPropagation());
+
+        if (Object.keys(perSettings).length > 0) {
+          const sep4 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+          const resetItem = settingsDropdown.createDiv({ cls: "sh-menu-item sh-menu-item-danger" });
+          resetItem.createSpan({ text: translate("resetToGlobal") });
+          resetItem.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            await this.plugin.resetAllFileSettings(activeFile.path);
+            this.plugin.autosaveManager?.restart();
+            closeSettingsDropdown();
+            this.refresh();
+          });
+        }
+      }
+    };
+
+    buildSettingsDropdown();
+    doc.body.appendChild(settingsDropdown);
+
+    const openSettingsDropdown = () => {
+      const rect = gearBtn.getBoundingClientRect();
+      const vpW = window.innerWidth;
+      const vpH = window.innerHeight;
+      settingsDropdown.classList.add("is-open");
+      const ddW = settingsDropdown.offsetWidth;
+      const ddH = settingsDropdown.offsetHeight;
+      let top = rect.bottom + 4;
+      let left = rect.left;
+      if (left + ddW > vpW - 8) left = vpW - ddW - 8;
+      if (left < 8) left = 8;
+      if (top + ddH > vpH - 8) top = rect.top - ddH - 4;
+      if (top < 8) top = 8;
+      settingsDropdown.style.top = top + "px";
+      settingsDropdown.style.left = left + "px";
+      doc.addEventListener("mousedown", onOutsideSettingsMouseDown, true);
+    };
+
+    gearBtn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (settingsDropdown.classList.contains("is-open")) {
+        closeSettingsDropdown();
+      } else {
+        buildSettingsDropdown();
+        openSettingsDropdown();
+      }
+    });
+
     if (!activeFile) {
       wrapper.createDiv({ text: translate("noActiveFile"), cls: "nav-header" });
       return;
@@ -308,7 +523,9 @@ export class SaveHistoryView extends ItemView {
     if (snapshots.length === 0) {
       listContainer.createDiv({ text: translate("noSavedVersions") });
     } else {
-      const groupBy = this.plugin.settings.groupBy;
+      const groupBy = activeFile
+        ? this.plugin.getEffectiveGroupBy(activeFile.path)
+        : this.plugin.settings.groupBy;
 
       if (groupBy === "none") {
         for (const snap of snapshots) {
@@ -647,7 +864,7 @@ export class SaveHistoryView extends ItemView {
       if (isSelected) {
         timeRow.classList.add("is-selected");
       }
-      const groupBy = this.plugin.settings.groupBy;
+      const groupBy = this.plugin.getEffectiveGroupBy(activeFile.path);
       if (groupBy === "day") {
         timeRow.textContent = date.toLocaleTimeString();
       } else {
@@ -820,6 +1037,92 @@ export class SaveHistoryView extends ItemView {
 
   refresh(): void {
     void this.onOpen();
+  }
+
+  private async refreshList(wrapper: HTMLElement, activeFile: TFile | null) {
+    if (!activeFile) return;
+    wrapper.querySelectorAll('.sh-diff-list, .sh-backup-divider, .sh-backup-header, .sh-backup-item').forEach(el => el.remove());
+    const listContainer = wrapper.createDiv({ cls: "sh-diff-list" });
+    const allSnapshots = await listSnapshotsForFile(this.plugin, activeFile.path);
+    const snapshots = allSnapshots.filter(s => s.reason !== "pre-restore");
+    const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
+    if (snapshots.length === 0) {
+      listContainer.createDiv({ text: translate("noSavedVersions") });
+    } else {
+      const groupBy = this.plugin.getEffectiveGroupBy(activeFile.path);
+      if (groupBy === "none") {
+        for (const snap of snapshots) {
+          this.renderSnapshotItem(listContainer, snap, activeFile);
+        }
+      } else {
+        const groups = this.groupSnapshots(snapshots, groupBy);
+        for (const group of groups) {
+          const groupKey = group.key;
+          const isCollapsed = !!this.plugin.settings.collapsedGroups[groupKey];
+          const groupEl = listContainer.createDiv({ cls: "sh-group" });
+          const groupHeader = groupEl.createDiv({ cls: "sh-group-header" });
+          const chevron = groupHeader.createEl("span", { text: isCollapsed ? "\u25B8 " : "\u25BE ", cls: "sh-group-chevron" });
+          const groupTitle = groupHeader.createEl("span", { cls: "sh-group-title" });
+          groupTitle.textContent = group.label;
+          groupHeader.createEl("span", { text: ` (${group.snapshots.length})`, cls: "sh-group-count" });
+          const itemsEl = groupEl.createDiv({ cls: "sh-group-items" });
+          if (isCollapsed) itemsEl.classList.add("is-collapsed");
+          groupHeader.onclick = async () => {
+            const collapsed = this.plugin.settings.collapsedGroups[groupKey];
+            if (collapsed) {
+              delete this.plugin.settings.collapsedGroups[groupKey];
+              itemsEl.classList.remove("is-collapsed");
+              chevron.textContent = "\u25BE ";
+            } else {
+              this.plugin.settings.collapsedGroups[groupKey] = true;
+              itemsEl.classList.add("is-collapsed");
+              chevron.textContent = "\u25B8 ";
+            }
+            await this.plugin.saveSettings();
+          };
+          for (const snap of group.snapshots) {
+            this.renderSnapshotItem(itemsEl, snap, activeFile);
+          }
+        }
+      }
+    }
+    if (preRestoreBackup) {
+      wrapper.createEl("hr", { cls: "sh-backup-divider" });
+      wrapper.createEl("h4", { text: translate("lastUnsavedVersion"), cls: "sh-backup-header" });
+      const backupItem = wrapper.createDiv({ cls: "sh-backup-item" });
+      const meta = backupItem.createDiv({ cls: "sh-backup-meta" });
+      const date = new Date(preRestoreBackup.timestamp);
+      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
+      const actions = backupItem.createDiv({ cls: "sh-backup-actions" });
+      const restoreBtn = actions.createEl("button", { text: translate("restoreBackup"), cls: "sh-backup-restore-btn" });
+      restoreBtn.onclick = async () => {
+        const curFile = this.plugin.getActiveFile();
+        if (!curFile) return;
+        const restored = await readSnapshotContent(this.plugin, preRestoreBackup.filePath);
+        if (!restored) { this.plugin.toast(translate("failedLoadBackup")); return; }
+        await this.versioning.restoreFromSnapshot(curFile, restored);
+        await deleteSnapshotFile(this.plugin, preRestoreBackup.filePath);
+        this.plugin.toast(translate("backupRestored"));
+        this.refresh();
+      };
+      const deleteBtn = actions.createEl("button", { text: translate("delete"), cls: "sh-backup-delete-btn" });
+      deleteBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const curFile = this.plugin.getActiveFile();
+        if (!curFile) return;
+        actions.empty();
+        actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
+        const yesBtn = actions.createEl("button", { text: translate("yes"), cls: "sh-delete-yes-btn" });
+        yesBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          const success = await deleteSnapshotFile(this.plugin, preRestoreBackup.filePath);
+          if (success) { this.plugin.toast(translate("backupDeleted")); this.refresh(); }
+          else { this.plugin.toast(translate("failedDeleteBackup")); this.refresh(); }
+        };
+        const noBtn = actions.createEl("button", { text: translate("no"), cls: "sh-delete-no-btn" });
+        noBtn.onclick = (ev) => { ev.stopPropagation(); this.refresh(); };
+      };
+    }
   }
 
   async onClose() {

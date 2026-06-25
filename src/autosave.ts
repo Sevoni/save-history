@@ -10,6 +10,7 @@ export class AutosaveManager {
   private plugin: SaveHistoryPlugin;
   private versioning: Versioning;
   private intervalId: number | null = null;
+  private lastAutosaveByFile: Map<string, number> = new Map();
 
   constructor(plugin: SaveHistoryPlugin, versioning: Versioning) {
     this.plugin = plugin;
@@ -18,7 +19,15 @@ export class AutosaveManager {
 
   start() {
     this.stop();
-    const interval = this.plugin.settings.autosaveInterval;
+
+    let interval = this.plugin.settings.autosaveInterval;
+    for (const per of Object.values(this.plugin.settings.perFileSettings)) {
+      if (per.autosaveInterval !== undefined && per.autosaveInterval > 0) {
+        if (interval <= 0 || per.autosaveInterval < interval) {
+          interval = per.autosaveInterval;
+        }
+      }
+    }
     if (interval <= 0) return;
 
     const ms = interval * 60 * 1000;
@@ -40,7 +49,7 @@ export class AutosaveManager {
   }
 
   async saveOnTabClose(file: TFile) {
-    if (!this.plugin.settings.autosaveOnTabClose) return;
+    if (!this.plugin.getEffectiveAutosaveOnTabClose(file.path)) return;
     const result = await this.versioning.saveNowForFile(file, "autosave");
     if (result === "saved") {
       await this.enforceMaxAutosaves(file.path);
@@ -52,6 +61,19 @@ export class AutosaveManager {
     const file = this.plugin.getActiveFile();
     if (!file) return;
 
+    const effectiveInterval = this.plugin.getEffectiveAutosaveInterval(file.path);
+    if (effectiveInterval <= 0) return;
+
+    const now = Date.now();
+    if (!this.lastAutosaveByFile.has(file.path)) {
+      this.lastAutosaveByFile.set(file.path, now);
+      return;
+    }
+    const lastSave = this.lastAutosaveByFile.get(file.path)!;
+    const intervalMs = effectiveInterval * 60 * 1000;
+    if (now - lastSave < intervalMs) return;
+
+    this.lastAutosaveByFile.set(file.path, now);
     this.versioning.saveNowForFile(file, "autosave").then(async (result) => {
       if (result === "saved") {
         await this.enforceMaxAutosaves(file.path);
@@ -70,7 +92,7 @@ export class AutosaveManager {
   }
 
   private async enforceMaxAutosaves(vaultRelativePath: string) {
-    const max = this.plugin.settings.maxAutosaveVersions;
+    const max = this.plugin.getEffectiveMaxAutosaveVersions(vaultRelativePath);
     if (max <= 0) return;
     await deleteOldestAutosaves(this.plugin, vaultRelativePath, max);
   }

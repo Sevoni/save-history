@@ -108,10 +108,30 @@
 .sh-header-title {
   margin: 0;
 }
-.sh-group-select {
-  font-size: 0.8em;
-  padding: 2px 4px;
+.sh-gear-btn {
+  background: none;
+  border: none;
+  padding: 4px;
   margin-left: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+  font-size: 1.2em;
+  line-height: 1;
+  user-select: none;
+}
+.sh-gear-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.sh-gear-btn svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
 }
 .sh-file-label {
   font-size: 0.85em;
@@ -300,6 +320,67 @@
 }
 .sh-menu-item:hover {
   background-color: var(--background-modifier-hover);
+}
+.sh-menu-check {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--text-accent);
+  font-weight: 700;
+}
+.sh-menu-group-header {
+  padding: 6px 12px 2px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.sh-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--background-modifier-border);
+}
+.sh-menu-item-danger {
+  color: var(--text-error);
+}
+.sh-settings-dropdown {
+  min-width: 260px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.sh-menu-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 0.9em;
+}
+.sh-menu-input {
+  width: 60px;
+  padding: 2px 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.9em;
+  text-align: center;
+}
+.sh-menu-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+.sh-menu-apply-btn {
+  background: var(--interactive-normal);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  line-height: 1;
+}
+.sh-menu-apply-btn:hover {
+  background: var(--interactive-hover);
 }
 
 /* ===== Inline Edit ===== */

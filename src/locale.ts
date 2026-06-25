@@ -140,6 +140,13 @@ type TranslationKeys = {
   maxAutosaveVersionsDesc: string;
   allowedExtensions: string;
   allowedExtensionsDesc: string;
+  settings: string;
+  on: string;
+  off: string;
+  minutes: string;
+  useGlobal: string;
+  unlimited: string;
+  resetToGlobal: string;
 };
 
 const en: TranslationKeys = {
@@ -267,6 +274,13 @@ const en: TranslationKeys = {
   maxAutosaveVersionsDesc: "Maximum number of autosaved versions per file. 0 = unlimited.",
   allowedExtensions: "Allowed file extensions",
   allowedExtensionsDesc: "Space or comma separated extensions. .md is always included. Example: json css js html",
+  settings: "Settings",
+  on: "On",
+  off: "Off",
+  minutes: "min",
+  useGlobal: "Use global",
+  unlimited: "Unlimited",
+  resetToGlobal: "Reset to global settings",
 };
 
 const ru: TranslationKeys = {
@@ -394,6 +408,13 @@ const ru: TranslationKeys = {
   maxAutosaveVersionsDesc: "Максимальное количество автосохранённых версий на файл. 0 — без ограничений.",
   allowedExtensions: "Разрешённые расширения файлов",
   allowedExtensionsDesc: "Расширения через пробел или запятую. .md всегда включён. Пример: json css js html",
+  settings: "Настройки",
+  on: "Вкл",
+  off: "Выкл",
+  minutes: "мин",
+  useGlobal: "Как в глобальных",
+  unlimited: "Без ограничений",
+  resetToGlobal: "Сбросить к глобальным настройкам",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru };
