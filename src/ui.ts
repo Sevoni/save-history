@@ -426,7 +426,7 @@ export class SaveHistoryView extends ItemView {
       return;
     }
 
-    wrapper.createDiv({ text: translate("fileLabel", { name: activeFile.name }), cls: "sh-file-label" });
+    wrapper.createDiv({ text: translate("fileLabel", { name: activeFile.name }), cls: "sh-file-label", attr: { title: activeFile.name } });
 
     const saveBtn = wrapper.createEl("button", { text: translate("saveVersionNow"), cls: "sh-save-btn" });
     saveBtn.onclick = async () => {

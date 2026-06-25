@@ -137,6 +137,8 @@
   font-size: 0.85em;
   color: var(--text-muted);
   margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .sh-save-btn {
   width: 100%;
