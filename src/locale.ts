@@ -110,6 +110,7 @@ type TranslationKeys = {
   noDifferences: string;
   added: string;
   removed: string;
+  changed: string;
   unchangedLinesShow: string;
   unchangedLinesHide: string;
 
@@ -239,6 +240,7 @@ const en: TranslationKeys = {
   noDifferences: "No differences",
   added: "+{n} added",
   removed: "-{n} removed",
+  changed: "~{n} changed",
   unchangedLinesShow: "\u25BE  {n} unchanged lines (click to show)  \u25BE",
   unchangedLinesHide: "\u25B4  {n} unchanged lines (click to hide)  \u25B4",
 
@@ -365,6 +367,7 @@ const ru: TranslationKeys = {
   noDifferences: "Различий нет",
   added: "+{n} добавлено",
   removed: "-{n} удалено",
+  changed: "~{n} изменено",
   unchangedLinesShow: "\u25BE  {n} неизменённых строк (нажмите, чтобы показать)  \u25BE",
   unchangedLinesHide: "\u25B4  {n} неизменённых строк (нажмите, чтобы скрыть)  \u25B4",
 

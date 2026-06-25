@@ -567,6 +567,33 @@
 .sh-diff-row-equal .sh-diff-row-text {
   color: var(--text-muted);
 }
+.sh-diff-row-remove.sh-diff-row-changed {
+  background: rgba(248, 81, 73, 0.05);
+}
+.sh-diff-row-add.sh-diff-row-changed {
+  background: rgba(46, 160, 67, 0.05);
+}
+.sh-diff-char-remove {
+  background: rgba(248, 81, 73, 0.3);
+  border-radius: 2px;
+}
+.sh-diff-char-add {
+  background: rgba(46, 160, 67, 0.3);
+  border-radius: 2px;
+}
+.sh-diff-row-change {
+  background: rgba(187, 128, 9, 0.08);
+}
+.sh-diff-row-change .sh-diff-row-prefix {
+  color: #bb8009;
+}
+.sh-diff-char-change {
+  background: rgba(187, 128, 9, 0.3);
+  border-radius: 2px;
+}
+.sh-diff-stats-changed {
+  color: #bb8009;
+}
 .sh-diff-collapse {
   display: flex;
   align-items: center;

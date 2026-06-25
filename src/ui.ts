@@ -973,14 +973,21 @@ class DiffModal extends Modal {
     const diff = computeDiff(this.contentOld, this.contentNew);
     const added = diff.filter(l => l.type === "add").length;
     const removed = diff.filter(l => l.type === "remove").length;
+    const changed = diff.filter(l => l.type === "change").length;
 
     const stats = el.createDiv({ cls: "sh-diff-stats" });
-    if (added === 0 && removed === 0) {
+    if (added === 0 && removed === 0 && changed === 0) {
       stats.textContent = translate("noDifferences");
     } else {
-      stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
-      stats.createEl("span", { text: "  " });
-      stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
+      if (added > 0) stats.createEl("span", { text: translate("added", { n: added }), cls: "sh-diff-stats-added" });
+      if (removed > 0) {
+        if (added > 0) stats.createEl("span", { text: "  " });
+        stats.createEl("span", { text: translate("removed", { n: removed }), cls: "sh-diff-stats-removed" });
+      }
+      if (changed > 0) {
+        if (added > 0 || removed > 0) stats.createEl("span", { text: "  " });
+        stats.createEl("span", { text: translate("changed", { n: changed }), cls: "sh-diff-stats-changed" });
+      }
     }
 
     const diffContainer = el.createDiv({ cls: "sh-diff-container" });
@@ -1065,7 +1072,12 @@ async function appendDiffRow(
   sourcePath: string,
   component: Component
 ) {
-  const row = parent.createDiv({ cls: `sh-diff-row sh-diff-row-${line.type}` });
+  const hasCharHighlight = line.charRanges && line.charRanges.length > 0;
+  const hasInterleaved = line.interleaved && line.interleaved.length > 0;
+  const cls = (hasCharHighlight || hasInterleaved)
+    ? `sh-diff-row sh-diff-row-${line.type} sh-diff-row-changed`
+    : `sh-diff-row sh-diff-row-${line.type}`;
+  const row = parent.createDiv({ cls });
 
   const numCol = row.createDiv({ cls: "sh-diff-row-num" });
   numCol.textContent = line.oldNo != null ? String(line.oldNo) : "";
@@ -1073,11 +1085,39 @@ async function appendDiffRow(
   const prefixCol = row.createDiv({ cls: "sh-diff-row-prefix" });
   if (line.type === "add") prefixCol.textContent = "+";
   else if (line.type === "remove") prefixCol.textContent = "\u2212";
+  else if (line.type === "change") prefixCol.textContent = "~";
   else prefixCol.textContent = " ";
 
   const textCol = row.createDiv({ cls: "sh-diff-row-text" });
 
-  if (line.text.length > 0) {
+  if (hasInterleaved) {
+    const wrapper = textCol.createDiv({ cls: "sh-raw-text" });
+    for (const edit of line.interleaved!) {
+      if (edit.type === "equal") {
+        wrapper.createEl("span", { text: edit.text });
+      } else {
+        const cls = edit.type === "add" ? "sh-diff-char-add" : "sh-diff-char-remove";
+        const span = wrapper.createEl("span", { cls });
+        span.textContent = edit.text;
+      }
+    }
+  } else if (hasCharHighlight) {
+    const wrapper = textCol.createDiv({ cls: "sh-raw-text" });
+    const ranges = [...line.charRanges!].sort((a, b) => a.start - b.start);
+    const charCls = line.type === "change" ? "sh-diff-char-change" : line.type === "add" ? "sh-diff-char-add" : "sh-diff-char-remove";
+    let lastIdx = 0;
+    for (const range of ranges) {
+      if (range.start > lastIdx) {
+        wrapper.createEl("span", { text: line.text.slice(lastIdx, range.start) });
+      }
+      const span = wrapper.createEl("span", { cls: charCls });
+      span.textContent = line.text.slice(range.start, range.end);
+      lastIdx = range.end;
+    }
+    if (lastIdx < line.text.length) {
+      wrapper.createEl("span", { text: line.text.slice(lastIdx) });
+    }
+  } else if (line.text.length > 0) {
     const ext = sourcePath.split(".").pop()?.toLowerCase() || "";
     if (ext === "md") {
       try {
