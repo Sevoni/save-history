@@ -2,6 +2,8 @@
 
 [English version](README.md) | [Español](README.es.md)
 
+![Save History](images/image.png)
+
 Плагин для Obsidian для сохранения и восстановления версий файлов.
 
 ## Возможности

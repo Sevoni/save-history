@@ -2,6 +2,8 @@
 
 [English version](README.md) | [Русская версия](README.ru.md)
 
+![Save History](images/image.png)
+
 Plugin para Obsidian para guardar y restaurar versiones de archivos.
 
 ## Funcionalidades
