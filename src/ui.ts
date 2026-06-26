@@ -1,4 +1,4 @@
-import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component } from "obsidian";
+import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component, setIcon } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode, type PerFileSettings } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
 import type { SnapshotRecord } from "./storage";
@@ -904,14 +904,16 @@ export class SaveHistoryView extends ItemView {
 
       const controls = meta.createDiv({ cls: "sh-inline-controls" });
 
-      const okBtn = controls.createEl("span", { text: "\u2714\uFE0F", cls: "sh-inline-ok" });
+      const okBtn = controls.createEl("span", { cls: "sh-inline-ok" });
+      setIcon(okBtn, "checkmark");
       okBtn.title = translate("save");
       okBtn.onclick = async (ev) => {
         ev.stopPropagation();
         await saveLabel();
       };
 
-      const cancelBtn = controls.createEl("span", { text: "\u274C", cls: "sh-inline-cancel" });
+      const cancelBtn = controls.createEl("span", { cls: "sh-inline-cancel" });
+      setIcon(cancelBtn, "cross");
       cancelBtn.title = translate("cancel");
       cancelBtn.onclick = (ev) => {
         ev.stopPropagation();
