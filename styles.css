@@ -15,19 +15,10 @@
   padding: 4px 8px;
   font-size: 0.9em;
 }
-.sh-settings-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 16px;
-}
 .sh-settings-input {
   flex: 1;
   padding: 4px 8px;
   font-size: 0.9em;
-}
-.sh-settings-btn {
-  flex-shrink: 0;
 }
 .sh-settings-input-num {
   padding: 4px 8px;
@@ -44,52 +35,6 @@
   margin-bottom: 16px;
   width: 300px;
 }
-.sh-settings-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.sh-settings-toggle-text {
-  /* no extra styles needed, just structural */
-}
-
-/* Toggle */
-.sh-toggle {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.sh-toggle-track {
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-  background: var(--background-modifier-border);
-  transition: background 0.2s;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.sh-toggle-track.is-checked {
-  background: var(--interactive-accent);
-}
-.sh-toggle-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: white;
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  transition: left 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-.sh-toggle-thumb.is-checked {
-  left: 18px;
-}
-
 /* ===== Sidebar ===== */
 .sh-sidebar {
   padding: 12px;

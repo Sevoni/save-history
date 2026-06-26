@@ -72,100 +72,96 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Snapshot folder
-		new Setting(wrapper)
+		const snapshotSetting = new Setting(wrapper)
 			.setName(translate("snapshotFolder"))
 			.setDesc(translate("snapshotFolderDesc"));
 
-		const folderRow = wrapper.createDiv({ cls: "sh-settings-row" });
-		const folderInput = folderRow.createEl("input", {
-			cls: "sh-settings-input",
-			attr: { type: "text" },
-		}) as HTMLInputElement;
-		folderInput.value = this.plugin.settings.snapshotFolder;
-
-		const folderSaveBtn = folderRow.createEl("button", {
-			text: translate("save"),
-			cls: "sh-settings-btn",
+		let snapshotText: any;
+		snapshotSetting.addText((text) => {
+			snapshotText = text;
+			text.setValue(this.plugin.settings.snapshotFolder);
+			text.inputEl.addClass("sh-settings-input");
 		});
-		folderSaveBtn.addEventListener("click", () => {
-			void (async () => {
-				const newName = folderInput.value.trim();
-				if (!newName) return;
-				if (newName === this.plugin.settings.snapshotFolder) return;
+		snapshotSetting.addButton((btn) => {
+			btn.setButtonText(translate("save"));
+			btn.onClick(() => {
+				void (async () => {
+					const newName = snapshotText.getValue().trim();
+					if (!newName) return;
+					if (newName === this.plugin.settings.snapshotFolder) return;
 
-				if (
-					/[<>:"|?*]/.test(newName) ||
-					newName.startsWith("/") ||
-					newName.endsWith("/") ||
-					newName.includes("..")
-				) {
-					this.plugin.toast(translate("snapshotFolderRenameFailed"));
-					return;
-				}
+					if (
+						/[<>:"|?*]/.test(newName) ||
+						newName.startsWith("/") ||
+						newName.endsWith("/") ||
+						newName.includes("..")
+					) {
+						this.plugin.toast(translate("snapshotFolderRenameFailed"));
+						return;
+					}
 
-				const oldName = this.plugin.settings.snapshotFolder;
-				const success = await renameSnapshotFolder(
-					this.plugin.app.vault.adapter,
-					oldName,
-					newName
-				);
-				if (success) {
-					this.plugin.settings.snapshotFolder = newName;
-					await this.plugin.saveSettings();
-					this.plugin.toast(translate("snapshotFolderRenamed"));
-					this.refreshSidebarViews();
-				} else {
-					this.plugin.toast(translate("snapshotFolderRenameFailed"));
-				}
-			})();
+					const oldName = this.plugin.settings.snapshotFolder;
+					const success = await renameSnapshotFolder(
+						this.plugin.app.vault.adapter,
+						oldName,
+						newName
+					);
+					if (success) {
+						this.plugin.settings.snapshotFolder = newName;
+						await this.plugin.saveSettings();
+						this.plugin.toast(translate("snapshotFolderRenamed"));
+						this.refreshSidebarViews();
+					} else {
+						this.plugin.toast(translate("snapshotFolderRenameFailed"));
+					}
+				})();
+			});
 		});
 
 		// Export folder
-		new Setting(wrapper)
+		const exportSetting = new Setting(wrapper)
 			.setName(translate("exportFolder"))
 			.setDesc(translate("exportFolderDesc"));
 
-		const exportFolderRow = wrapper.createDiv({ cls: "sh-settings-row" });
-		const exportFolderInput = exportFolderRow.createEl("input", {
-			cls: "sh-settings-input",
-			attr: { type: "text" },
-		}) as HTMLInputElement;
-		exportFolderInput.value = this.plugin.settings.exportFolder;
-
-		const exportFolderSaveBtn = exportFolderRow.createEl("button", {
-			text: translate("save"),
-			cls: "sh-settings-btn",
+		let exportText: any;
+		exportSetting.addText((text) => {
+			exportText = text;
+			text.setValue(this.plugin.settings.exportFolder);
+			text.inputEl.addClass("sh-settings-input");
 		});
-		exportFolderSaveBtn.addEventListener("click", () => {
-			void (async () => {
-				const newName = exportFolderInput.value.trim();
-				if (!newName) return;
-				if (newName === this.plugin.settings.exportFolder) return;
+		exportSetting.addButton((btn) => {
+			btn.setButtonText(translate("save"));
+			btn.onClick(() => {
+				void (async () => {
+					const newName = exportText.getValue().trim();
+					if (!newName) return;
+					if (newName === this.plugin.settings.exportFolder) return;
 
-				if (
-					/[<>:"|?*]/.test(newName) ||
-					newName.startsWith("/") ||
-					newName.endsWith("/") ||
-					newName.includes("..")
-				) {
-					this.plugin.toast(translate("exportFolderRenameFailed"));
-					return;
-				}
+					if (
+						/[<>:"|?*]/.test(newName) ||
+						newName.startsWith("/") ||
+						newName.endsWith("/") ||
+						newName.includes("..")
+					) {
+						this.plugin.toast(translate("exportFolderRenameFailed"));
+						return;
+					}
 
-				const oldName = this.plugin.settings.exportFolder;
-				const success = await renameExportFolder(
-					this.plugin.app.vault.adapter,
-					oldName,
-					newName
-				);
-				if (success) {
-					this.plugin.settings.exportFolder = newName;
-					await this.plugin.saveSettings();
-					this.plugin.toast(translate("exportFolderRenamed"));
-				} else {
-					this.plugin.toast(translate("exportFolderRenameFailed"));
-				}
-			})();
+					const oldName = this.plugin.settings.exportFolder;
+					const success = await renameExportFolder(
+						this.plugin.app.vault.adapter,
+						oldName,
+						newName
+					);
+					if (success) {
+						this.plugin.settings.exportFolder = newName;
+						await this.plugin.saveSettings();
+						this.plugin.toast(translate("exportFolderRenamed"));
+					} else {
+						this.plugin.toast(translate("exportFolderRenameFailed"));
+					}
+				})();
+			});
 		});
 
 		// Autosave interval
@@ -189,32 +185,23 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Autosave on tab close — toggle
-		const tabToggleRow = wrapper.createDiv({ cls: "sh-settings-toggle-row" });
-		const tabTextCol = tabToggleRow.createDiv({ cls: "sh-settings-toggle-text" });
-		tabTextCol.createDiv({
-			text: translate("autosaveOnTabClose"),
-			cls: "setting-item-name",
-		});
-		tabTextCol.createDiv({
-			text: translate("autosaveOnTabCloseDesc"),
-			cls: "setting-item-description",
-		});
-
-		const tabToggle = this.createToggle(
-			this.plugin.settings.autosaveOnTabClose,
-			(val) => {
-				void (async () => {
-					this.plugin.settings.autosaveOnTabClose = val;
-					await this.plugin.saveSettings();
-					if (val) {
-						this.plugin.registerTabCloseListener();
-					} else {
-						this.plugin.unregisterTabCloseListener();
-					}
-				})();
-			}
-		);
-		tabToggleRow.appendChild(tabToggle);
+		new Setting(wrapper)
+			.setName(translate("autosaveOnTabClose"))
+			.setDesc(translate("autosaveOnTabCloseDesc"))
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.autosaveOnTabClose);
+				toggle.onChange((val) => {
+					void (async () => {
+						this.plugin.settings.autosaveOnTabClose = val;
+						await this.plugin.saveSettings();
+						if (val) {
+							this.plugin.registerTabCloseListener();
+						} else {
+							this.plugin.unregisterTabCloseListener();
+						}
+					})();
+				});
+			});
 
 		// Max autosave versions
 		new Setting(wrapper)
@@ -250,36 +237,6 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 					})();
 				});
 			});
-	}
-
-	private createToggle(
-		checked: boolean,
-		onChange: (val: boolean) => void
-	): HTMLElement {
-		const doc = activeDocument;
-
-		const container = doc.createElement("div");
-		container.classList.add("sh-toggle");
-
-		const track = doc.createElement("div");
-		track.classList.add("sh-toggle-track");
-		if (checked) track.classList.add("is-checked");
-
-		const thumb = doc.createElement("div");
-		thumb.classList.add("sh-toggle-thumb");
-		if (checked) thumb.classList.add("is-checked");
-
-		track.appendChild(thumb);
-		container.appendChild(track);
-
-		container.addEventListener("click", () => {
-			checked = !checked;
-			track.classList.toggle("is-checked", checked);
-			thumb.classList.toggle("is-checked", checked);
-			onChange(checked);
-		});
-
-		return container;
 	}
 
 	private refreshSidebarViews() {
