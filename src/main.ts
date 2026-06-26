@@ -31,7 +31,7 @@ export interface SaveHistorySettings {
 const DEFAULT_SETTINGS: SaveHistorySettings = {
   groupBy: "day",
   collapsedGroups: {},
-  language: "en",
+  language: "system",
   snapshotFolder: ".versions(SH)",
   exportFolder: "Exported versions",
   autosaveInterval: 0,

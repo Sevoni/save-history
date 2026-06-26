@@ -36,6 +36,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			.setName(translate("language"))
 			.setDesc(translate("languageDesc"))
 			.addDropdown((dropdown) => {
+				dropdown.addOption("system", translate("langSystem"));
 				dropdown.addOption("en", "English");
 				dropdown.addOption("ru", "\u0420\u0443\u0441\u0441\u043a\u0438\u0439");
 				dropdown.addOption("es", "Espa\u00f1ol");

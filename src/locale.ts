@@ -1,4 +1,4 @@
-export type Language = "en" | "ru" | "es";
+export type Language = "system" | "en" | "ru" | "es";
 
 type TranslationKeys = {
   // Commands
@@ -147,6 +147,7 @@ type TranslationKeys = {
   useGlobal: string;
   unlimited: string;
   resetToGlobal: string;
+  langSystem: string;
 };
 
 const en: TranslationKeys = {
@@ -281,6 +282,7 @@ const en: TranslationKeys = {
   useGlobal: "Use global",
   unlimited: "Unlimited",
   resetToGlobal: "Reset to global settings",
+  langSystem: "System language",
 };
 
 const ru: TranslationKeys = {
@@ -415,6 +417,7 @@ const ru: TranslationKeys = {
   useGlobal: "Как в глобальных",
   unlimited: "Без ограничений",
   resetToGlobal: "Сбросить к глобальным настройкам",
+  langSystem: "Язык системы",
 };
 
 const es: TranslationKeys = {
@@ -549,11 +552,24 @@ const es: TranslationKeys = {
   useGlobal: "Usar global",
   unlimited: "Sin límite",
   resetToGlobal: "Restablecer a configuración global",
+  langSystem: "Idioma del sistema",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru, es };
 
-let currentLanguage: Language = "en";
+let currentLanguage: Language = "system";
+
+function detectSystemLanguage(): "en" | "ru" | "es" {
+  const lang = navigator.language.toLowerCase();
+  if (lang.startsWith("ru")) return "ru";
+  if (lang.startsWith("es")) return "es";
+  return "en";
+}
+
+function getEffectiveLanguage(): "en" | "ru" | "es" {
+  if (currentLanguage === "system") return detectSystemLanguage();
+  return currentLanguage;
+}
 
 export function setLanguage(lang: Language) {
   currentLanguage = lang;
@@ -563,8 +579,19 @@ export function getLanguage(): Language {
   return currentLanguage;
 }
 
+export function getLocale(): string | undefined {
+  if (currentLanguage === "system") return undefined;
+  const localeMap: Record<string, string> = {
+    en: "en-US",
+    ru: "ru-RU",
+    es: "es-ES",
+  };
+  return localeMap[currentLanguage] || "en-US";
+}
+
 export function translate(key: keyof TranslationKeys, params?: Record<string, string | number>): string {
-  let str = translations[currentLanguage][key] || translations.en[key] || key;
+  const lang = getEffectiveLanguage();
+  let str = translations[lang][key] || translations.en[key] || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));

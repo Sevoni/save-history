@@ -3,7 +3,7 @@ import { SaveHistoryPlugin, type GroupByMode, type PerFileSettings } from "./mai
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
-import { translate } from "./locale";
+import { translate, getLocale } from "./locale";
 import { setupVersioning } from "./versioning";
 
 type Versioning = ReturnType<typeof setupVersioning>;
@@ -583,7 +583,7 @@ export class SaveHistoryView extends ItemView {
 
       const meta = backupItem.createDiv({ cls: "sh-backup-meta" });
       const date = new Date(preRestoreBackup.timestamp);
-      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
+      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(getLocale()), time: date.toLocaleTimeString() });
 
       const actions = backupItem.createDiv({ cls: "sh-backup-actions" });
 
@@ -649,21 +649,21 @@ export class SaveHistoryView extends ItemView {
 
       if (groupBy === "day") {
         key = date.toISOString().slice(0, 10);
-        label = date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+        label = date.toLocaleDateString(getLocale(), { weekday: "long", year: "numeric", month: "long", day: "numeric" });
       } else if (groupBy === "week") {
         const weekStart = this.getWeekStart(date);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
         key = weekStart.toISOString().slice(0, 10);
-        const startLabel = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        const endLabel = weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        const startLabel = weekStart.toLocaleDateString(getLocale(), { month: "short", day: "numeric" });
+        const endLabel = weekEnd.toLocaleDateString(getLocale(), { month: "short", day: "numeric", year: "numeric" });
         label = `${startLabel} \u2013 ${endLabel}`;
       } else if (groupBy === "month") {
         key = date.toISOString().slice(0, 7);
-        label = date.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+        label = date.toLocaleDateString(getLocale(), { year: "numeric", month: "long" });
       } else {
         key = date.toISOString().slice(0, 4);
-        label = date.toLocaleDateString(undefined, { year: "numeric" });
+        label = date.toLocaleDateString(getLocale(), { year: "numeric" });
       }
 
       if (!groups.has(key)) {
@@ -868,7 +868,7 @@ export class SaveHistoryView extends ItemView {
       if (groupBy === "day") {
         timeRow.textContent = date.toLocaleTimeString();
       } else {
-        timeRow.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        timeRow.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
       }
     };
 
@@ -996,7 +996,7 @@ export class SaveHistoryView extends ItemView {
         titleEl.textContent = snap.reason;
 
         const timeEl = el.createDiv({ cls: "sh-preview-time" });
-        timeEl.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        timeEl.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
 
         const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
@@ -1094,7 +1094,7 @@ export class SaveHistoryView extends ItemView {
       const backupItem = wrapper.createDiv({ cls: "sh-backup-item" });
       const meta = backupItem.createDiv({ cls: "sh-backup-meta" });
       const date = new Date(preRestoreBackup.timestamp);
-      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(), time: date.toLocaleTimeString() });
+      meta.textContent = translate("autoSavedOnRestore", { date: date.toLocaleDateString(getLocale()), time: date.toLocaleTimeString() });
       const actions = backupItem.createDiv({ cls: "sh-backup-actions" });
       const restoreBtn = actions.createEl("button", { text: translate("restoreBackup"), cls: "sh-backup-restore-btn" });
       restoreBtn.onclick = async () => {
@@ -1197,7 +1197,7 @@ class RestoreVersionModal extends Modal {
 
       const timeLabel = meta.createEl("span", { cls: "sh-restore-time" });
       const d = new Date(snap.timestamp);
-      timeLabel.textContent = `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+      timeLabel.textContent = `${d.toLocaleDateString(getLocale())} ${d.toLocaleTimeString()}`;
 
       const btn = row.createEl("button");
       btn.textContent = translate("restore");
@@ -1268,12 +1268,12 @@ class DiffModal extends Modal {
     const infoRow = el.createDiv({ cls: "sh-diff-info-row" });
 
     const oldTag = infoRow.createEl("span", { cls: "sh-diff-tag sh-diff-tag-old" });
-    oldTag.textContent = `${this.snapOld.reason} \u2014 ${oldDate.toLocaleDateString()} ${oldDate.toLocaleTimeString()}`;
+    oldTag.textContent = `${this.snapOld.reason} \u2014 ${oldDate.toLocaleDateString(getLocale())} ${oldDate.toLocaleTimeString()}`;
 
     infoRow.createEl("span", { text: "\u2192", cls: "sh-diff-arrow" });
 
     const newTag = infoRow.createEl("span", { cls: "sh-diff-tag sh-diff-tag-new" });
-    newTag.textContent = `${this.snapNew.reason} \u2014 ${newDate.toLocaleDateString()} ${newDate.toLocaleTimeString()}`;
+    newTag.textContent = `${this.snapNew.reason} \u2014 ${newDate.toLocaleDateString(getLocale())} ${newDate.toLocaleTimeString()}`;
 
     const diff = computeDiff(this.contentOld, this.contentNew);
     const added = diff.filter(l => l.type === "add").length;
