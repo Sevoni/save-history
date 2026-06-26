@@ -170,7 +170,7 @@ export class SaveHistoryPlugin extends Plugin {
                     interface FileHandle {
                       createWritable(): Promise<{ write(data: string | BufferSource | Blob): Promise<void>; close(): Promise<void> }>;
                     }
-                    const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" }) as unknown as DirHandle;
+                    const dirHandle = await w.showDirectoryPicker({ mode: "readwrite" }) as DirHandle;
                     const baseName = file.name.replace(/\.[^.]+$/, "");
                     const folderHandle = await dirHandle.getDirectoryHandle(baseName, { create: true });
                     for (const snap of snapshots) {
@@ -296,7 +296,7 @@ export class SaveHistoryPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const data = (await this.loadData()) as Record<string, unknown> | null;
+    const data = (await this.loadData());
     if (data) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     }

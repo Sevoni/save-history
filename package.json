@@ -5,10 +5,14 @@
   "main": "main.js",
   "scripts": {
     "build": "node build.js",
-    "watch": "node build.js --watch"
+    "watch": "node build.js --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "esbuild": "^0.21.5"
+    "esbuild": "^0.21.5",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.0"
   }
 }
-

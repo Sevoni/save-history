@@ -1,4 +1,4 @@
-import { PluginSettingTab, Setting, type Plugin } from "obsidian";
+import { PluginSettingTab, Setting, TextComponent, type Plugin } from "obsidian";
 import { VIEW_TYPE_SAVE_HISTORY, SaveHistoryView } from "./ui";
 import { translate, setLanguage, type Language } from "./locale";
 import { renameSnapshotFolder, renameExportFolder } from "./storage";
@@ -78,7 +78,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			.setName(translate("snapshotFolder"))
 			.setDesc(translate("snapshotFolderDesc"));
 
-		let snapshotText: any;
+		let snapshotText: TextComponent;
 		snapshotSetting.addText((text) => {
 			snapshotText = text;
 			text.setValue(this.plugin.settings.snapshotFolder);
@@ -125,7 +125,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			.setName(translate("exportFolder"))
 			.setDesc(translate("exportFolderDesc"));
 
-		let exportText: any;
+		let exportText: TextComponent;
 		exportSetting.addText((text) => {
 			exportText = text;
 			text.setValue(this.plugin.settings.exportFolder);

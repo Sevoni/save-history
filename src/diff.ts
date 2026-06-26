@@ -34,8 +34,8 @@ function charDiffRanges(oldStr: string, newStr: string): { oldRanges: CharRange[
   if (oldStr === newStr) return { oldRanges: [], newRanges: [] };
 
   const dp = charLCS(oldStr, newStr);
-  const oldHighlights: boolean[] = new Array(oldStr.length).fill(true);
-  const newHighlights: boolean[] = new Array(newStr.length).fill(true);
+  const oldHighlights = Array.from({ length: oldStr.length }, () => true);
+  const newHighlights = Array.from({ length: newStr.length }, () => true);
 
   let i = oldStr.length;
   let j = newStr.length;

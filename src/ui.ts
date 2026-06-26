@@ -1,5 +1,5 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component, setIcon } from "obsidian";
-import { SaveHistoryPlugin, type GroupByMode, type PerFileSettings } from "./main";
+import { SaveHistoryPlugin, type GroupByMode } from "./main";
 import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
 import type { SnapshotRecord } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
@@ -74,20 +74,20 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
         }
       }
     })(); },
-  } as Parameters<typeof plugin.addCommand>[0]);
+  });
 
   plugin.addCommand?.({
     id: "save-history:restore",
     name: translate("cmdRestore"),
-    callback: () => { void (async () => {
+    callback: () => {
       const file = plugin.getActiveFile();
       if (!file) {
         plugin.toast(translate("noFileOpenRestore"));
         return;
       }
       new RestoreVersionModal(plugin, file, versioning).open();
-    })(); },
-  } as Parameters<typeof plugin.addCommand>[0]);
+    },
+  });
 
   plugin.addCommand?.({
     id: "save-history:open-sidebar",
@@ -108,7 +108,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
         plugin.app.workspace.revealLeaf(leaf);
       }
     })(); },
-  } as Parameters<typeof plugin.addCommand>[0]);
+  });
 
   plugin.addCommand?.({
     id: "save-history:restore-last-backup",
@@ -141,7 +141,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
         }
       }
     })(); },
-  } as Parameters<typeof plugin.addCommand>[0]);
+  });
 }
 
 export class SaveHistoryView extends ItemView {
@@ -231,11 +231,11 @@ export class SaveHistoryView extends ItemView {
         const groupGlobalCheck = groupGlobalItem.createSpan({ cls: "sh-menu-check" });
         groupGlobalCheck.textContent = !isCustomGroup ? "\u2713" : "";
         groupGlobalItem.createSpan({ text: `${translate("useGlobal")} (${translate("group" + globalGroupBy.charAt(0).toUpperCase() + globalGroupBy.slice(1))})` });
-        groupGlobalItem.addEventListener("click", async (e) => {
+        groupGlobalItem.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.clearFileSetting(activeFile.path, "groupBy");
+          void this.plugin.clearFileSetting(activeFile.path, "groupBy");
           buildSettingsDropdown();
-          this.refreshList(wrapper, activeFile);
+          void this.refreshList(wrapper, activeFile);
         });
       }
 
@@ -244,21 +244,21 @@ export class SaveHistoryView extends ItemView {
         const check = item.createSpan({ cls: "sh-menu-check" });
         check.textContent = currentGroupBy === o.value ? "\u2713" : "";
         item.createSpan({ text: o.label });
-        item.addEventListener("click", async (e) => {
+        item.addEventListener("click", (e) => {
           e.stopPropagation();
           if (activeFile) {
-            await this.plugin.setFileSetting(activeFile.path, "groupBy", o.value);
+            void this.plugin.setFileSetting(activeFile.path, "groupBy", o.value);
           } else {
             this.plugin.settings.groupBy = o.value;
-            await this.plugin.saveSettings();
+            void this.plugin.saveSettings();
           }
           buildSettingsDropdown();
-          this.refreshList(wrapper, activeFile);
+          void this.refreshList(wrapper, activeFile);
         });
       }
 
       if (activeFile) {
-        const sep1 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        const _sep1 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const perSettings = this.plugin.getFileSettings(activeFile.path);
 
@@ -276,9 +276,9 @@ export class SaveHistoryView extends ItemView {
         const intervalCheckGlobal = intervalItemGlobal.createSpan({ cls: "sh-menu-check" });
         intervalCheckGlobal.textContent = !isCustomInterval ? "\u2713" : "";
         intervalItemGlobal.createSpan({ text: `${translate("useGlobal")} (${globalInterval <= 0 ? translate("off") : `${globalInterval} ${translate("minutes")}`})` });
-        intervalItemGlobal.addEventListener("click", async (e) => {
+        intervalItemGlobal.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.clearFileSetting(activeFile.path, "autosaveInterval");
+          void this.plugin.clearFileSetting(activeFile.path, "autosaveInterval");
           this.plugin.autosaveManager?.restart();
           buildSettingsDropdown();
         });
@@ -300,7 +300,7 @@ export class SaveHistoryView extends ItemView {
         intervalInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); void applyInterval(); } });
         intervalInput.addEventListener("click", (e) => e.stopPropagation());
 
-        const sep2 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        const _sep2 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const effectiveTabClose = this.plugin.getEffectiveAutosaveOnTabClose(activeFile.path);
         const isCustomTabClose = perSettings.autosaveOnTabClose !== undefined;
@@ -313,9 +313,9 @@ export class SaveHistoryView extends ItemView {
         const tabCheckGlobal = tabUseGlobal.createSpan({ cls: "sh-menu-check" });
         tabCheckGlobal.textContent = !isCustomTabClose ? "\u2713" : "";
         tabUseGlobal.createSpan({ text: `${translate("useGlobal")} (${globalTabClose ? translate("on") : translate("off")})` });
-        tabUseGlobal.addEventListener("click", async (e) => {
+        tabUseGlobal.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.clearFileSetting(activeFile.path, "autosaveOnTabClose");
+          void this.plugin.clearFileSetting(activeFile.path, "autosaveOnTabClose");
           buildSettingsDropdown();
         });
 
@@ -323,9 +323,9 @@ export class SaveHistoryView extends ItemView {
         const tabCheckOn = tabOn.createSpan({ cls: "sh-menu-check" });
         tabCheckOn.textContent = isCustomTabClose && effectiveTabClose === true ? "\u2713" : "";
         tabOn.createSpan({ text: translate("on") });
-        tabOn.addEventListener("click", async (e) => {
+        tabOn.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", true);
+          void this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", true);
           buildSettingsDropdown();
         });
 
@@ -333,13 +333,13 @@ export class SaveHistoryView extends ItemView {
         const tabCheckOff = tabOff.createSpan({ cls: "sh-menu-check" });
         tabCheckOff.textContent = isCustomTabClose && effectiveTabClose === false ? "\u2713" : "";
         tabOff.createSpan({ text: translate("off") });
-        tabOff.addEventListener("click", async (e) => {
+        tabOff.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", false);
+          void this.plugin.setFileSetting(activeFile.path, "autosaveOnTabClose", false);
           buildSettingsDropdown();
         });
 
-        const sep3 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        const _sep3 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const effectiveMax = this.plugin.getEffectiveMaxAutosaveVersions(activeFile.path);
         const isCustomMax = perSettings.maxAutosaveVersions !== undefined;
@@ -352,9 +352,9 @@ export class SaveHistoryView extends ItemView {
         const maxCheckGlobal = maxUseGlobal.createSpan({ cls: "sh-menu-check" });
         maxCheckGlobal.textContent = !isCustomMax ? "\u2713" : "";
         maxUseGlobal.createSpan({ text: `${translate("useGlobal")} (${globalMax <= 0 ? translate("unlimited") : String(globalMax)})` });
-        maxUseGlobal.addEventListener("click", async (e) => {
+        maxUseGlobal.addEventListener("click", (e) => {
           e.stopPropagation();
-          await this.plugin.clearFileSetting(activeFile.path, "maxAutosaveVersions");
+          void this.plugin.clearFileSetting(activeFile.path, "maxAutosaveVersions");
           buildSettingsDropdown();
         });
 
@@ -375,12 +375,12 @@ export class SaveHistoryView extends ItemView {
         maxInput.addEventListener("click", (e) => e.stopPropagation());
 
         if (Object.keys(perSettings).length > 0) {
-          const sep4 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+          const _sep4 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
           const resetItem = settingsDropdown.createDiv({ cls: "sh-menu-item sh-menu-item-danger" });
           resetItem.createSpan({ text: translate("resetToGlobal") });
-          resetItem.addEventListener("click", async (e) => {
+          resetItem.addEventListener("click", (e) => {
             e.stopPropagation();
-            await this.plugin.resetAllFileSettings(activeFile.path);
+            void this.plugin.resetAllFileSettings(activeFile.path);
             this.plugin.autosaveManager?.restart();
             closeSettingsDropdown();
             this.refresh();
@@ -605,11 +605,10 @@ export class SaveHistoryView extends ItemView {
       };
 
       const deleteBtn = actions.createEl("button", { text: translate("delete"), cls: "sh-backup-delete-btn" });
-      deleteBtn.onclick = async (e) => {
+      deleteBtn.onclick = (e) => {
         e.stopPropagation();
         const curFile = this.plugin.getActiveFile();
         if (!curFile) return;
-
         actions.empty();
 
         actions.createEl("span", { text: translate("deleteBackup"), cls: "sh-backup-confirm-text" });
@@ -1108,7 +1107,7 @@ export class SaveHistoryView extends ItemView {
         this.refresh();
       };
       const deleteBtn = actions.createEl("button", { text: translate("delete"), cls: "sh-backup-delete-btn" });
-      deleteBtn.onclick = async (e) => {
+      deleteBtn.onclick = (e) => {
         e.stopPropagation();
         const curFile = this.plugin.getActiveFile();
         if (!curFile) return;
@@ -1127,7 +1126,7 @@ export class SaveHistoryView extends ItemView {
     }
   }
 
-  async onClose() {
+  onClose() {
     this.cleanupDropdowns();
   }
 
