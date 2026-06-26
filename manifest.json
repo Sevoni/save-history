@@ -3,7 +3,7 @@
   "name": "Save History",
   "version": "1.2.6",
   "minAppVersion": "0.15.0",
-  "description": "Saves and restores versions of markdown files.",
+  "description": "Save, restore, compare, export, and import file versions; use autosave and custom settings for each file.",
   "author": "Gugl",
   "isDesktopOnly": false
 }
