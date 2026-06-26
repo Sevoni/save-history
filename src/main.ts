@@ -1,9 +1,9 @@
-import { Notice, Plugin, TFile, TAbstractFile, Menu, MenuItem, EventRef } from "obsidian";
+import { Notice, Plugin, TFile, TFolder, TAbstractFile, Menu, MenuItem, EventRef } from "obsidian";
 import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, translate, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath } from "./storage";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath, updateSnapshotRecordsAfterRename } from "./storage";
 import { AutosaveManager } from "./autosave";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
@@ -68,19 +68,50 @@ export class SaveHistoryPlugin extends Plugin {
 
     this.registerEvent(
       this.app.vault.on("rename", async (file, oldPath) => {
-        if (!(file instanceof TFile)) return;
-        if (!this.isExtensionAllowed(file.extension)) return;
+        if (!(file instanceof TFile) && !(file instanceof TFolder)) return;
+        if (file instanceof TFile && !this.isExtensionAllowed(file.extension)) return;
 
         const oldDir = getSnapshotDirPath(this, oldPath);
         const newDir = getSnapshotDirPath(this, file.path);
 
         await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
 
+        // Update perFileSettings keys
+        const isFolder = file instanceof TFolder;
+        const keysToUpdate: string[] = [];
+        for (const key of Object.keys(this.settings.perFileSettings)) {
+          if (isFolder) {
+            if (key === oldPath || key.startsWith(oldPath + "/")) {
+              keysToUpdate.push(key);
+            }
+          } else {
+            if (key === oldPath) keysToUpdate.push(key);
+          }
+        }
+        for (const key of keysToUpdate) {
+          const newKey = isFolder
+            ? file.path + key.substring(oldPath.length)
+            : file.path;
+          this.settings.perFileSettings[newKey] = this.settings.perFileSettings[key];
+          delete this.settings.perFileSettings[key];
+        }
+        if (keysToUpdate.length > 0) await this.saveSettings();
+
+        // Update SnapshotRecord.path inside snapshot files
+        await updateSnapshotRecordsAfterRename(this, oldPath, file.path, isFolder);
+
+        // Refresh all sidebar views
+        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+        for (const leaf of leaves) {
+          if (leaf.view instanceof SaveHistoryView) {
+            void leaf.view.refresh();
+          }
+        }
+
         const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
         await removeEmptyParentDirs(this, parentDir);
       })
     );
-
     this.registerEvent(
       this.app.vault.on("delete", async (file) => {
         if (!(file instanceof TFile)) return;

@@ -523,3 +523,66 @@ export async function removeEmptyParentDirs(plugin: SaveHistoryPlugin, dirPath: 
     currentDir = currentDir.split("/").slice(0, -1).join("/");
   }
 }
+
+async function walkJsonFiles(
+  adapter: DataAdapter,
+  dirPath: string,
+  callback: (filePath: string) => Promise<void>
+): Promise<void> {
+  if (!(await adapter.exists(dirPath))) return;
+
+  const stack = [dirPath];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    let listResult: { files: string[]; folders: string[] };
+    try {
+      listResult = await adapter.list(current);
+    } catch {
+      continue;
+    }
+
+    for (const folder of listResult.folders || []) {
+      const full = folder.replace(/\\/g, "/");
+      stack.push(full.startsWith(current) ? full : `${current}/${full}`);
+    }
+
+    for (const file of listResult.files || []) {
+      const full = file.replace(/\\/g, "/");
+      const fullPath = full.startsWith(current) ? full : `${current}/${full}`;
+      if (fullPath.endsWith(".json")) {
+        await callback(fullPath);
+      }
+    }
+  }
+}
+
+export async function updateSnapshotRecordsAfterRename(
+  plugin: SaveHistoryPlugin,
+  oldPath: string,
+  newPath: string,
+  isFolder: boolean
+): Promise<void> {
+  const snapshotDir = getSnapshotDirPath(plugin, newPath);
+  const adapter = plugin.app.vault.adapter;
+
+  await walkJsonFiles(adapter, snapshotDir, async (filePath) => {
+    try {
+      const content = await adapter.read(filePath);
+      const record = JSON.parse(content) as SnapshotRecord;
+
+      if (isFolder) {
+        if (record.path === oldPath || record.path.startsWith(oldPath + "/")) {
+          record.path = newPath + record.path.substring(oldPath.length);
+        }
+      } else {
+        if (record.path === oldPath) {
+          record.path = newPath;
+        }
+      }
+
+      await adapter.write(filePath, JSON.stringify(record, null, 2));
+    } catch {
+      // skip invalid files
+    }
+  });
+}
