@@ -1,4 +1,4 @@
-export type Language = "en" | "ru";
+export type Language = "en" | "ru" | "es";
 
 type TranslationKeys = {
   // Commands
@@ -417,7 +417,141 @@ const ru: TranslationKeys = {
   resetToGlobal: "Сбросить к глобальным настройкам",
 };
 
-const translations: Record<Language, TranslationKeys> = { en, ru };
+const es: TranslationKeys = {
+  cmdSaveNow: "Guardar versión ahora",
+  cmdSaveNowDesc: "Guardar una versión del archivo actual",
+  cmdRestore: "Restaurar versión\u2026",
+  cmdRestoreDesc: "Restaurar una versión guardada",
+  cmdOpenSidebar: "Abrir panel de historial",
+  cmdRestoreLastBackup: "Restaurar última versión no guardada",
+  cmdRestoreLastBackupDesc: "Restaurar la última copia de seguridad previa a la restauración para el archivo actual",
+  noFileOpenSave: "Abre un archivo para guardar una versión.",
+  noFileOpenRestore: "Abre un archivo para restaurar una versión.",
+
+  viewTitle: "Historial del archivo",
+  noActiveFile: "Ningún archivo activo.",
+  fileLabel: "Archivo: {name}",
+  saveVersionNow: "Guardar versión ahora",
+  versionSaved: "Versión guardada.",
+  noSavedVersions: "Aún no hay versiones guardadas.",
+
+  groupNone: "Sin agrupar",
+  groupDay: "Por día",
+  groupWeek: "Por semana",
+  groupMonth: "Por mes",
+  groupYear: "Por año",
+
+  diffTwoVersions: "Comparar dos versiones",
+  cancelDiff: "Cancelar comparación",
+  showDiff: "Mostrar diferencias",
+  clear: "Limpiar",
+  selectForDiff: "Seleccionar para comparar",
+  deselect: "Deseleccionar",
+  replaceSelection: "Reemplazar selección",
+  diffNewer: "1 (más reciente)",
+  diffOlder: "2 (más antigua)",
+  diffWithCurrent: "Comparar con actual",
+  currentFile: "Archivo actual",
+
+  restore: "Restaurar",
+  preview: "Vista previa",
+  moreActions: "Más acciones",
+  delete: "Eliminar",
+  deleteConfirm: "¿Eliminar?",
+  yes: "Sí",
+  no: "No",
+  versionDeleted: "Versión eliminada.",
+  failedDeleteVersion: "Error al eliminar la versión.",
+
+  bulkDeleteSelected: "Eliminar seleccionadas",
+  bulkDeleteConfirm: "¿Eliminar las versiones seleccionadas?",
+  bulkDeleteSuccess: "{n} versión(es) eliminada(s).",
+  bulkDeleteFailed: "Error al eliminar algunas versiones.",
+  selectAll: "Seleccionar todo",
+  deselectAll: "Deseleccionar todo",
+  failedLoadSnapshot: "Error al cargar la instantánea.",
+  failedLoadSnapshotContent: "Error al cargar el contenido de la instantánea.",
+  versionRestored: "Versión restaurada. El estado actual se ha respaldado abajo.",
+  renameVersion: "Renombrar versión",
+  labelUpdated: "Etiqueta actualizada.",
+  failedUpdateLabel: "Error al actualizar la etiqueta.",
+  save: "Guardar",
+  cancel: "Cancelar",
+
+  restoreThisVersion: "Restaurar esta versión",
+  close: "Cerrar",
+
+  lastUnsavedVersion: "Última versión no guardada",
+  autoSavedOnRestore: "Guardado automático al restaurar: {date} {time}",
+  restoreBackup: "Restaurar copia de seguridad",
+  backupRestored: "Copia de seguridad restaurada.",
+  failedLoadBackup: "Error al cargar la copia de seguridad.",
+  backupDeleted: "Copia de seguridad eliminada.",
+  failedDeleteBackup: "Error al eliminar la copia de seguridad.",
+  deleteBackup: "¿Eliminar copia de seguridad?",
+
+  restoreVersion: "Restaurar versión",
+  loadingVersions: "Cargando versiones\u2026",
+  noSavedVersionsYet: "Aún no hay versiones guardadas.",
+  unnamed: "(sin nombre)",
+  versionRestoredDot: "Versión restaurada.",
+  failedLoadSnapshotDot: "Error al cargar la instantánea seleccionada.",
+
+  exportVersion: "Exportar versión",
+  exportAllVersions: "Exportar todas las versiones",
+  exportSuccess: "Versión exportada.",
+  exportAllSuccess: "Todas las versiones exportadas a {path}.",
+  exportNoVersions: "No hay versiones para exportar.",
+  importVersions: "Importar versiones\u2026",
+  importSuccess: "Versiones importadas.",
+  importNoFiles: "Ningún archivo seleccionado.",
+
+  exportFolder: "Carpeta de exportación",
+  exportFolderDesc: "Carpeta en el vault donde se exportan las versiones cuando el selector de carpetas del navegador no está disponible.",
+  exportFolderRenamed: "Carpeta de exportación renombrada correctamente.",
+  exportFolderRenameFailed: "Error al renombrar la carpeta de exportación.",
+
+  diff: "Diferencias",
+  noDifferences: "Sin diferencias",
+  added: "+{n} añadido",
+  removed: "-{n} eliminado",
+  changed: "~{n} cambiado",
+  unchangedLinesShow: "\u25BE  {n} líneas sin cambios (clic para mostrar)  \u25BE",
+  unchangedLinesHide: "\u25B4  {n} líneas sin cambios (clic para ocultar)  \u25B4",
+
+  settingsTitle: "Configuración de Save History",
+  language: "Idioma",
+  languageDesc: "Idioma de la interfaz del plugin.",
+  groupVersionsBy: "Agrupar versiones por",
+  groupVersionsDesc: "Agrupar versiones guardadas en el panel lateral por período de tiempo.",
+  snapshotFolder: "Carpeta de instantáneas",
+  snapshotFolderDesc: "Carpeta en la raíz del vault donde se almacenan las versiones. Comienza con \".\" para ocultarla del explorador de Obsidian.",
+  snapshotFolderRenamed: "Carpeta renombrada correctamente.",
+  snapshotFolderRenameFailed: "Error al renombrar la carpeta.",
+
+  versionPreview: "Vista previa de versión",
+  noPreviewLoaded: "No hay vista previa cargada.",
+  noChangesDetected: "Versión no guardada — no se detectaron cambios.",
+
+  autosaveInterval: "Intervalo de guardado automático (min)",
+  autosaveIntervalDesc: "Guardar automáticamente una versión cada N minutos. 0 para desactivar.",
+  autosaveOnTabClose: "Guardado automático al cerrar pestaña",
+  autosaveOnTabCloseDesc: "Guardar una versión al cerrar la pestaña del archivo.",
+  autosaveVersionSaved: "Versión guardada automáticamente.",
+  maxAutosaveVersions: "Máx. versiones automáticas",
+  maxAutosaveVersionsDesc: "Número máximo de versiones automáticas por archivo. 0 = sin límite.",
+  allowedExtensions: "Extensiones de archivo permitidas",
+  allowedExtensionsDesc: "Extensiones separadas por espacio o coma. .md siempre está incluido. Ejemplo: json css js html",
+  settings: "Configuración",
+  on: "Activado",
+  off: "Desactivado",
+  minutes: "min",
+  useGlobal: "Usar global",
+  unlimited: "Sin límite",
+  resetToGlobal: "Restablecer a configuración global",
+};
+
+const translations: Record<Language, TranslationKeys> = { en, ru, es };
 
 let currentLanguage: Language = "en";
 
