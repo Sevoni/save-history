@@ -531,6 +531,7 @@ async function walkJsonFiles(
 ): Promise<void> {
   if (!(await adapter.exists(dirPath))) return;
 
+  const jsonFiles: string[] = [];
   const stack = [dirPath];
   while (stack.length > 0) {
     const current = stack.pop()!;
@@ -550,10 +551,12 @@ async function walkJsonFiles(
       const full = file.replace(/\\/g, "/");
       const fullPath = full.startsWith(current) ? full : `${current}/${full}`;
       if (fullPath.endsWith(".json")) {
-        await callback(fullPath);
+        jsonFiles.push(fullPath);
       }
     }
   }
+
+  await Promise.all(jsonFiles.map(callback));
 }
 
 export async function updateSnapshotRecordsAfterRename(

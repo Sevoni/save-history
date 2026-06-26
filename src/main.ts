@@ -74,9 +74,23 @@ export class SaveHistoryPlugin extends Plugin {
         const oldDir = getSnapshotDirPath(this, oldPath);
         const newDir = getSnapshotDirPath(this, file.path);
 
-        await renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
+        // Don't await rename — it can be slow on Windows
+        const renamePromise = renameSnapshotFolder(this.app.vault.adapter, oldDir, newDir);
 
-        // Update perFileSettings keys
+        // Refresh views immediately — no delay for the user
+        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
+        const refreshViews = () => {
+          for (const leaf of leaves) {
+            if (leaf.view instanceof SaveHistoryView) {
+              void leaf.view.refresh();
+            }
+          }
+        };
+        refreshViews();
+        // Refresh again after rename completes
+        void renamePromise.then(refreshViews).catch(() => {});
+
+        // Update perFileSettings keys (fast — memory only)
         const isFolder = file instanceof TFolder;
         const keysToUpdate: string[] = [];
         for (const key of Object.keys(this.settings.perFileSettings)) {
@@ -97,16 +111,8 @@ export class SaveHistoryPlugin extends Plugin {
         }
         if (keysToUpdate.length > 0) await this.saveSettings();
 
-        // Update SnapshotRecord.path inside snapshot files
-        await updateSnapshotRecordsAfterRename(this, oldPath, file.path, isFolder);
-
-        // Refresh all sidebar views
-        const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY);
-        for (const leaf of leaves) {
-          if (leaf.view instanceof SaveHistoryView) {
-            void leaf.view.refresh();
-          }
-        }
+        // Update SnapshotRecord.path in background
+        void updateSnapshotRecordsAfterRename(this, oldPath, file.path, isFolder);
 
         const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
         await removeEmptyParentDirs(this, parentDir);
