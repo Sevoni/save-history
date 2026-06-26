@@ -8,6 +8,24 @@ import { setupVersioning } from "./versioning";
 
 type Versioning = ReturnType<typeof setupVersioning>;
 
+function toBase64(str: string): string {
+  const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let result = "";
+  for (let i = 0; i < str.length; i += 3) {
+    const b1 = str.charCodeAt(i);
+    const b2 = i + 1 < str.length ? str.charCodeAt(i + 1) : 0;
+    const b3 = i + 2 < str.length ? str.charCodeAt(i + 2) : 0;
+    result += table[b1 >> 2] + table[((b1 << 4) | (b2 >> 4)) & 63];
+    if (i + 1 < str.length) {
+      result += table[((b2 << 2) | (b3 >> 6)) & 63];
+      result += i + 2 < str.length ? table[b3 & 63] : "=";
+    } else {
+      result += "==";
+    }
+  }
+  return result;
+}
+
 async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: string, sourcePath: string): Promise<string> {
   const adapter = plugin.app.vault.adapter;
   const parentFolder = sourcePath.includes("/") ? sourcePath.substring(0, sourcePath.lastIndexOf("/")) : "";
@@ -41,7 +59,7 @@ async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: stri
           : "image/png";
         const encoded = new TextEncoder().encode(data);
         const binary = Array.from(encoded, b => String.fromCharCode(b)).join("");
-        const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+        const dataUrl = `data:${mime};base64,${toBase64(binary)}`;
         result = result.split(match.full).join(`![image](${dataUrl})`);
       }
     } catch {
@@ -56,7 +74,7 @@ export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
 
 export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioning) {
   plugin.addCommand?.({
-    id: "save-history:save-now",
+    id: "save-now",
     name: translate("cmdSaveNow"),
     callback: () => { void (async () => {
       const file = plugin.getActiveFile();
@@ -77,7 +95,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
   });
 
   plugin.addCommand?.({
-    id: "save-history:restore",
+    id: "restore",
     name: translate("cmdRestore"),
     callback: () => {
       const file = plugin.getActiveFile();
@@ -90,7 +108,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
   });
 
   plugin.addCommand?.({
-    id: "save-history:open-sidebar",
+    id: "open-sidebar",
     name: translate("cmdOpenSidebar"),
     callback: () => { void (async () => {
       let leaf = plugin.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY)[0];
@@ -111,7 +129,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
   });
 
   plugin.addCommand?.({
-    id: "save-history:restore-last-backup",
+    id: "restore-last-backup",
     name: translate("cmdRestoreLastBackup"),
     callback: () => { void (async () => {
       const file = plugin.getActiveFile();
@@ -258,7 +276,7 @@ export class SaveHistoryView extends ItemView {
       }
 
       if (activeFile) {
-        const _sep1 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const perSettings = this.plugin.getFileSettings(activeFile.path);
 
@@ -300,7 +318,7 @@ export class SaveHistoryView extends ItemView {
         intervalInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); void applyInterval(); } });
         intervalInput.addEventListener("click", (e) => e.stopPropagation());
 
-        const _sep2 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const effectiveTabClose = this.plugin.getEffectiveAutosaveOnTabClose(activeFile.path);
         const isCustomTabClose = perSettings.autosaveOnTabClose !== undefined;
@@ -339,7 +357,7 @@ export class SaveHistoryView extends ItemView {
           buildSettingsDropdown();
         });
 
-        const _sep3 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+        settingsDropdown.createDiv({ cls: "sh-menu-separator" });
 
         const effectiveMax = this.plugin.getEffectiveMaxAutosaveVersions(activeFile.path);
         const isCustomMax = perSettings.maxAutosaveVersions !== undefined;
@@ -375,7 +393,7 @@ export class SaveHistoryView extends ItemView {
         maxInput.addEventListener("click", (e) => e.stopPropagation());
 
         if (Object.keys(perSettings).length > 0) {
-          const _sep4 = settingsDropdown.createDiv({ cls: "sh-menu-separator" });
+          settingsDropdown.createDiv({ cls: "sh-menu-separator" });
           const resetItem = settingsDropdown.createDiv({ cls: "sh-menu-item sh-menu-item-danger" });
           resetItem.createSpan({ text: translate("resetToGlobal") });
           resetItem.addEventListener("click", (e) => {

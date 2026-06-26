@@ -1,8 +1,8 @@
 /* Minimal Obsidian API typings for plugin development/build.
    This is intentionally incomplete; it only covers what this plugin uses. */
 
-declare var activeWindow: Window | undefined;
-declare var activeDocument: Document | undefined;
+declare let activeWindow: Window | undefined;
+declare let activeDocument: Document | undefined;
 
 interface HTMLElement {
   empty(): void;
