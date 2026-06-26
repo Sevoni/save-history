@@ -64,6 +64,25 @@ export class SaveHistoryPlugin extends Plugin {
 
     this.registerTabCloseListener();
 
+    this.addRibbonIcon("history", translate("viewTitle"), () => {
+      void (async () => {
+        let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_SAVE_HISTORY)[0];
+        if (!leaf) {
+          const rightLeaf = this.app.workspace.getRightLeaf(false);
+          if (rightLeaf) {
+            leaf = rightLeaf;
+            await leaf.setViewState({
+              type: VIEW_TYPE_SAVE_HISTORY,
+              active: true,
+            });
+          }
+        }
+        if (leaf) {
+          this.app.workspace.revealLeaf(leaf);
+        }
+      })();
+    });
+
     this.addSettingTab(new SaveHistorySettingTab(this.app, this));
 
     this.registerEvent(
