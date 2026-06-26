@@ -1,7 +1,4 @@
 /* ===== Settings ===== */
-.sh-settings-wrapper {
-  padding: 12px;
-}
 .sh-settings-header {
   margin-bottom: 16px;
 }
@@ -17,6 +14,7 @@
 }
 .sh-settings-input {
   flex: 1;
+  min-width: 0;
   padding: 4px 8px;
   font-size: 0.9em;
 }
@@ -25,6 +23,8 @@
   font-size: 0.9em;
   margin-bottom: 16px;
   width: 80px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .sh-settings-section-label {
   margin-top: 16px;
@@ -33,7 +33,9 @@
   padding: 4px 8px;
   font-size: 0.9em;
   margin-bottom: 16px;
-  width: 300px;
+  max-width: 300px;
+  width: 100%;
+  box-sizing: border-box;
 }
 /* ===== Sidebar ===== */
 .sh-sidebar {
@@ -707,6 +709,27 @@
 /* ===== Import hidden file input ===== */
 .sh-import-input {
   display: none;
+}
+
+/* ===== Narrow screens ===== */
+.sh-settings-container .setting-item-control .sh-settings-input {
+  flex: 1 1 auto;
+  min-width: 140px;
+}
+.sh-settings-container .setting-item-description {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+@media (max-width: 900px) {
+  .sh-settings-container .setting-item-control {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+@media (max-width: 640px) {
+  .sh-settings-dropdown {
+    min-width: 140px;
+  }
 }
 
 /* ===== Dragging ===== */

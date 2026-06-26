@@ -24,15 +24,13 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const el = this.containerEl;
-		el.empty();
+		this.containerEl.empty();
+		this.containerEl.addClass("sh-settings-container");
 
-		const wrapper = el.createDiv({ cls: "sh-settings-wrapper" });
-
-		new Setting(wrapper).setName(translate("settingsTitle")).setHeading();
+		new Setting(this.containerEl).setName(translate("settingsTitle")).setHeading();
 
 		// Language
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("language"))
 			.setDesc(translate("languageDesc"))
 			.addDropdown((dropdown) => {
@@ -54,7 +52,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Group by
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("groupVersionsBy"))
 			.setDesc(translate("groupVersionsDesc"))
 			.addDropdown((dropdown) => {
@@ -74,7 +72,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Snapshot folder
-		const snapshotSetting = new Setting(wrapper)
+		const snapshotSetting = new Setting(this.containerEl)
 			.setName(translate("snapshotFolder"))
 			.setDesc(translate("snapshotFolderDesc"));
 
@@ -121,7 +119,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		});
 
 		// Export folder
-		const exportSetting = new Setting(wrapper)
+		const exportSetting = new Setting(this.containerEl)
 			.setName(translate("exportFolder"))
 			.setDesc(translate("exportFolderDesc"));
 
@@ -167,7 +165,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 		});
 
 		// Autosave interval
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("autosaveInterval"))
 			.setDesc(translate("autosaveIntervalDesc"))
 			.addText((text) => {
@@ -187,7 +185,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Autosave on tab close — toggle
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("autosaveOnTabClose"))
 			.setDesc(translate("autosaveOnTabCloseDesc"))
 			.addToggle((toggle) => {
@@ -206,7 +204,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Max autosave versions
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("maxAutosaveVersions"))
 			.setDesc(translate("maxAutosaveVersionsDesc"))
 			.addText((text) => {
@@ -225,7 +223,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 			});
 
 		// Allowed file extensions
-		new Setting(wrapper)
+		new Setting(this.containerEl)
 			.setName(translate("allowedExtensions"))
 			.setDesc(translate("allowedExtensionsDesc"))
 			.addText((text) => {
