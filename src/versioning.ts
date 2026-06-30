@@ -3,7 +3,7 @@ import { SaveHistoryPlugin } from "./main";
 import { saveSnapshotContent, listSnapshotsForFile, readSnapshotContent, SnapshotRecord } from "./storage";
 
 export function setupVersioning(plugin: SaveHistoryPlugin) {
-  async function saveNowForFile(file: TFile, reason: string): Promise<"saved" | "no_change"> {
+  async function saveNowForFile(file: TFile, name: string): Promise<"saved" | "no_change"> {
     if (!file) return "no_change";
     if (!plugin.isExtensionAllowed(file.extension)) return "no_change";
 
@@ -11,7 +11,7 @@ export function setupVersioning(plugin: SaveHistoryPlugin) {
     const vaultRelativePath = file.path;
 
     const snapshots = await listSnapshotsForFile(plugin, vaultRelativePath);
-    const nonPreRestore = snapshots.filter(s => s.reason !== "pre-restore");
+    const nonPreRestore = snapshots.filter(s => s.name !== "pre-restore");
 
     if (nonPreRestore.length > 0) {
       const latest = nonPreRestore[0];
@@ -22,7 +22,7 @@ export function setupVersioning(plugin: SaveHistoryPlugin) {
     }
 
     const timestamp = new Date().toISOString();
-    await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, reason);
+    await saveSnapshotContent(plugin, vaultRelativePath, timestamp, content, name);
     return "saved";
   }
 

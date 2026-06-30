@@ -13,6 +13,7 @@ type PluginWithSettings = Plugin & {
 	autosaveManager: AutosaveManager | null;
 	registerTabCloseListener: () => void;
 	unregisterTabCloseListener: () => void;
+	refreshCommands: () => void;
 };
 
 export class SaveHistorySettingTab extends PluginSettingTab {
@@ -45,6 +46,7 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 						this.plugin.settings.language = lang;
 						setLanguage(lang);
 						await this.plugin.saveSettings();
+						this.plugin.refreshCommands();
 						this.display();
 						this.refreshSidebarViews();
 					})();

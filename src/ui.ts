@@ -1,7 +1,7 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component, setIcon } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
-import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath } from "./storage";
-import type { SnapshotRecord } from "./storage";
+import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath, searchSnapshots, escapeRegex } from "./storage";
+import type { SnapshotRecord, SearchMatch } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 import { translate, getLocale } from "./locale";
 import { setupVersioning } from "./versioning";
@@ -138,7 +138,7 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
         return;
       }
       const allSnapshots = await listSnapshotsForFile(plugin, file.path);
-      const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
+      const preRestoreBackup = allSnapshots.find(s => s.name === "pre-restore");
       if (!preRestoreBackup) {
         plugin.toast(translate("noSavedVersions"));
         return;
@@ -158,7 +158,15 @@ export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioni
           void leaf.view.refresh();
         }
       }
-    })(); },
+      })(); },
+  });
+
+  plugin.addCommand?.({
+    id: "search-all-versions",
+    name: translate("searchSnapshotsCmd"),
+    callback: () => {
+      new SearchSnapshotsModal(plugin, versioning).open();
+    },
   });
 }
 
@@ -535,8 +543,8 @@ export class SaveHistoryView extends ItemView {
     const listContainer = wrapper.createDiv({ cls: "sh-diff-list" });
 
     const allSnapshots = await listSnapshotsForFile(this.plugin, activeFile.path);
-    const snapshots = allSnapshots.filter(s => s.reason !== "pre-restore");
-    const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
+    const snapshots = allSnapshots.filter(s => s.name !== "pre-restore");
+    const preRestoreBackup = allSnapshots.find(s => s.name === "pre-restore");
 
     if (snapshots.length === 0) {
       listContainer.createDiv({ text: translate("noSavedVersions") });
@@ -730,7 +738,7 @@ export class SaveHistoryView extends ItemView {
       }
 
       const label = nameRow.createEl("span", { cls: "sh-snapshot-label" });
-      label.textContent = snap.reason;
+      label.textContent = snap.name;
 
       if (selectionLabel) {
         nameRow.createEl("span", { text: ` [${selectionLabel}]`, cls: "sh-snapshot-sel-label" });
@@ -813,7 +821,7 @@ export class SaveHistoryView extends ItemView {
             path: curFile.path,
             content: currentContent,
             timestamp: new Date().toISOString(),
-            reason: translate("currentFile"),
+            name: translate("currentFile"),
             filePath: curFile.path,
           };
           new DiffModal(this.plugin, snap, currentSnap, snapContent.content, currentContent).open();
@@ -894,7 +902,7 @@ export class SaveHistoryView extends ItemView {
 
       const input = meta.createEl("input", { cls: "sh-inline-input" });
       input.type = "text";
-      input.value = snap.reason;
+      input.value = snap.name;
 
       const saveLabel = async () => {
         const val = input.value.trim();
@@ -1010,7 +1018,7 @@ export class SaveHistoryView extends ItemView {
         el.classList.add("sh-preview-body");
 
         const titleEl = el.createEl("h2", { cls: "sh-preview-title" });
-        titleEl.textContent = snap.reason;
+        titleEl.textContent = snap.name;
 
         const timeEl = el.createDiv({ cls: "sh-preview-time" });
         timeEl.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
@@ -1063,8 +1071,8 @@ export class SaveHistoryView extends ItemView {
     wrapper.querySelectorAll('.sh-diff-list, .sh-backup-divider, .sh-backup-header, .sh-backup-item').forEach(el => el.remove());
     const listContainer = wrapper.createDiv({ cls: "sh-diff-list" });
     const allSnapshots = await listSnapshotsForFile(this.plugin, activeFile.path);
-    const snapshots = allSnapshots.filter(s => s.reason !== "pre-restore");
-    const preRestoreBackup = allSnapshots.find(s => s.reason === "pre-restore");
+    const snapshots = allSnapshots.filter(s => s.name !== "pre-restore");
+    const preRestoreBackup = allSnapshots.find(s => s.name === "pre-restore");
     if (snapshots.length === 0) {
       listContainer.createDiv({ text: translate("noSavedVersions") });
     } else {
@@ -1210,7 +1218,7 @@ class RestoreVersionModal extends Modal {
       const meta = row.createDiv({ cls: "sh-restore-meta" });
 
       const nameLabel = meta.createEl("span", { cls: "sh-restore-name" });
-      nameLabel.textContent = snap.reason || translate("unnamed");
+      nameLabel.textContent = snap.name || translate("unnamed");
 
       const timeLabel = meta.createEl("span", { cls: "sh-restore-time" });
       const d = new Date(snap.timestamp);
@@ -1285,12 +1293,12 @@ class DiffModal extends Modal {
     const infoRow = el.createDiv({ cls: "sh-diff-info-row" });
 
     const oldTag = infoRow.createEl("span", { cls: "sh-diff-tag sh-diff-tag-old" });
-    oldTag.textContent = `${this.snapOld.reason} \u2014 ${oldDate.toLocaleDateString(getLocale())} ${oldDate.toLocaleTimeString()}`;
+    oldTag.textContent = `${this.snapOld.name} \u2014 ${oldDate.toLocaleDateString(getLocale())} ${oldDate.toLocaleTimeString()}`;
 
     infoRow.createEl("span", { text: "\u2192", cls: "sh-diff-arrow" });
 
     const newTag = infoRow.createEl("span", { cls: "sh-diff-tag sh-diff-tag-new" });
-    newTag.textContent = `${this.snapNew.reason} \u2014 ${newDate.toLocaleDateString(getLocale())} ${newDate.toLocaleTimeString()}`;
+    newTag.textContent = `${this.snapNew.name} \u2014 ${newDate.toLocaleDateString(getLocale())} ${newDate.toLocaleTimeString()}`;
 
     const diff = computeDiff(this.contentOld, this.contentNew);
     const added = diff.filter(l => l.type === "add").length;
@@ -1552,4 +1560,320 @@ function makeResizable(el: HTMLElement, signal?: AbortSignal) {
     doc.removeEventListener("mouseup", onMouseUp);
     resizer.removeEventListener("mousedown", onMouseDown);
   });
+}
+
+export class SearchSnapshotsModal extends Modal {
+  private plugin: SaveHistoryPlugin;
+  private versioning: Versioning;
+  private query: string = "";
+  private results: SearchMatch[] = [];
+  private debounceTimer: number | null = null;
+  private resultsEl!: HTMLElement;
+  private inputEl!: HTMLInputElement;
+  private countEl!: HTMLElement;
+
+  constructor(plugin: SaveHistoryPlugin, versioning: Versioning) {
+    super(plugin.app);
+    this.plugin = plugin;
+    this.versioning = versioning;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    const modalContainer = this.modalEl;
+    if (modalContainer) {
+      modalContainer.classList.add("sh-search-modal");
+    }
+
+    const header = contentEl.createDiv({ cls: "sh-search-header" });
+
+    const inputWrapper = header.createDiv({ cls: "sh-search-input-wrapper" });
+    this.inputEl = inputWrapper.createEl("input", {
+      cls: "sh-search-input",
+      attr: { type: "text", placeholder: translate("searchInputPlaceholder") } as Record<string, string>,
+    });
+
+    const clearBtn = inputWrapper.createEl("span", { text: "\u2715", cls: "sh-search-clear-btn" });
+    clearBtn.onclick = () => {
+      this.inputEl.value = "";
+      this.query = "";
+      this.results = [];
+      this.countEl.textContent = "";
+      this.renderResults();
+      this.inputEl.focus();
+    };
+
+    this.countEl = header.createDiv({ cls: "sh-search-result-count" });
+
+    this.resultsEl = contentEl.createDiv({ cls: "sh-search-results" });
+
+    this.inputEl.addEventListener("input", () => {
+      this.query = this.inputEl.value;
+      if (this.debounceTimer !== null) {
+        clearTimeout(this.debounceTimer);
+      }
+      this.debounceTimer = window.setTimeout(() => void this.doSearch(), 300);
+    });
+
+    window.setTimeout(() => this.inputEl.focus(), 50);
+    this.renderResults();
+  }
+
+  private async doSearch() {
+    if (!this.query.trim()) {
+      this.results = [];
+      this.renderResults();
+      return;
+    }
+
+    this.resultsEl.empty();
+    this.resultsEl.createDiv({ text: translate("searchLoading"), cls: "sh-search-result-empty" });
+
+    this.results = await searchSnapshots(this.plugin, this.query);
+    this.renderResults();
+  }
+
+  private renderResults() {
+    this.resultsEl.empty();
+
+    if (!this.query.trim()) {
+      this.countEl.textContent = "";
+      this.resultsEl.createDiv({ text: translate("searchInputPlaceholder"), cls: "sh-search-result-empty" });
+      return;
+    }
+
+    if (this.results.length === 0) {
+      this.countEl.textContent = "";
+      this.resultsEl.createDiv({ text: translate("searchNoResults"), cls: "sh-search-result-empty" });
+      return;
+    }
+
+    this.countEl.textContent = translate("searchResultsCount", { n: this.results.length });
+
+    const currentFileResults = this.results.filter(r => r.isCurrentFile);
+    const otherResults = this.results.filter(r => !r.isCurrentFile);
+
+    if (currentFileResults.length > 0) {
+      const sep = this.resultsEl.createDiv({ cls: "sh-search-separator" });
+      sep.textContent = translate("searchCurrentFile");
+      for (const match of currentFileResults) {
+        this.renderResultItem(match);
+      }
+    }
+
+    if (otherResults.length > 0) {
+      const sep = this.resultsEl.createDiv({ cls: "sh-search-separator" });
+      sep.textContent = translate("searchOtherFiles");
+      for (const match of otherResults) {
+        this.renderResultItem(match);
+      }
+    }
+  }
+
+  private renderResultItem(match: SearchMatch) {
+    const item = this.resultsEl.createDiv({ cls: "sh-search-result-item" });
+
+    if (match.isCurrentFile) {
+      item.classList.add("sh-search-result-current");
+    }
+
+    const pathEl = item.createDiv({ cls: "sh-search-result-path" });
+    this.highlightText(pathEl, match.path);
+
+    const metaEl = item.createDiv({ cls: "sh-search-result-meta" });
+    const date = new Date(match.timestamp);
+    const locale = getLocale();
+    metaEl.textContent = `${match.name}  \u2014  ${date.toLocaleDateString(locale)} ${date.toLocaleTimeString(locale)}`;
+
+    const snippetEl = item.createDiv({ cls: "sh-search-result-snippet" });
+    this.highlightText(snippetEl, match.snippet);
+
+    item.onclick = () => {
+      void (async () => {
+        const sourceFile = this.plugin.app.vault.getAbstractFileByPath(match.path);
+        if (sourceFile instanceof TFile) {
+          let existing: WorkspaceLeaf | null = null;
+          this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+            if (leaf.view && "file" in leaf.view) {
+              const v = leaf.view as { file: { path: string } };
+              if (v.file?.path === sourceFile.path) {
+                existing = leaf;
+              }
+            }
+          });
+          if (existing) {
+            this.plugin.app.workspace.revealLeaf(existing);
+          } else {
+            const leaf = this.plugin.app.workspace.getLeaf("tab");
+            await leaf.openFile(sourceFile);
+            this.plugin.app.workspace.revealLeaf(leaf);
+          }
+        }
+        await this.openPreview(match);
+      })();
+    };
+  }
+
+  private highlightText(container: HTMLElement, text: string) {
+    if (!this.query.trim() || !text) {
+      container.textContent = text;
+      return;
+    }
+
+    let regex: RegExp;
+    try {
+      regex = new RegExp(`(${this.query.trim()})`, "gi");
+    } catch {
+      regex = new RegExp(`(${escapeRegex(this.query.trim())})`, "gi");
+    }
+
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        container.createSpan({ text: text.slice(lastIndex, match.index) });
+      }
+      container.createEl("span", { text: match[0], cls: "sh-search-highlight" });
+      lastIndex = match.index + match[0].length;
+      if (match.index === regex.lastIndex) regex.lastIndex++;
+    }
+
+    if (lastIndex < text.length) {
+      container.createSpan({ text: text.slice(lastIndex) });
+    }
+  }
+
+  private async openPreview(match: SearchMatch) {
+    const sourceFile = this.plugin.app.vault.getAbstractFileByPath(match.path);
+    const ext = sourceFile instanceof TFile ? sourceFile.extension : (match.path.split(".").pop()?.toLowerCase() || "md");
+
+    const restored = await readSnapshotContent(this.plugin, match.filePath);
+    if (!restored) {
+      this.plugin.toast(translate("failedLoadSnapshot"));
+      return;
+    }
+
+    const previewModal = new Modal(this.plugin.app);
+    const previewAbort = new AbortController();
+    previewModal.onOpen = () => {
+      const el = previewModal.contentEl;
+      el.empty();
+
+      const modalContainer = previewModal.modalEl;
+      if (modalContainer) {
+        modalContainer.classList.add("sh-preview-modal");
+      }
+
+      el.classList.add("sh-preview-body");
+
+      const titleEl = el.createEl("h2", { cls: "sh-preview-title" });
+      titleEl.textContent = match.name;
+
+      const timeEl = el.createDiv({ cls: "sh-preview-time" });
+      const date = new Date(match.timestamp);
+      timeEl.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
+
+      const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
+
+      const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, match.path);
+      resolvedContent.then(async (resolved) => {
+        if (ext === "md") {
+          try {
+            await MarkdownRenderer.render(this.plugin.app, resolved, content, match.path, previewModal);
+          } catch {
+            content.createEl("pre", { cls: "sh-raw-pre", text: resolved });
+          }
+        } else {
+          content.createEl("pre", { cls: "sh-raw-pre", text: resolved });
+        }
+        if (this.query.trim()) {
+          highlightInDom(content, this.query.trim());
+        }
+      }).catch(() => {});
+
+      const btnRow = el.createDiv({ cls: "sh-preview-btn-row" });
+
+      if (sourceFile instanceof TFile && this.plugin.isExtensionAllowed(sourceFile.extension)) {
+        const rst = btnRow.createEl("button", { text: translate("restoreThisVersion") });
+        rst.onclick = async () => {
+          const currentContent = await this.plugin.app.vault.read(sourceFile);
+          await savePreRestoreBackup(this.plugin, sourceFile.path, currentContent);
+          await this.versioning.restoreFromSnapshot(sourceFile, restored);
+          this.plugin.toast(translate("versionRestored"));
+          previewModal.close();
+        };
+      }
+
+      const cls = btnRow.createEl("button", { text: translate("close") });
+      cls.onclick = () => previewModal.close();
+
+      if (modalContainer) {
+        makeDraggable(modalContainer, titleEl, previewAbort.signal);
+        makeResizable(modalContainer, previewAbort.signal);
+      }
+    };
+    previewModal.onClose = () => previewAbort.abort();
+    previewModal.open();
+  }
+
+  onClose() {
+    if (this.debounceTimer !== null) {
+      clearTimeout(this.debounceTimer);
+    }
+  }
+}
+
+function highlightInDom(container: HTMLElement, query: string) {
+  if (!query) return;
+
+  let regex: RegExp;
+  try {
+    regex = new RegExp(query, "gi");
+  } catch {
+    regex = new RegExp(escapeRegex(query), "gi");
+  }
+
+  const textNodes: { node: Text; parent: Element }[] = [];
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.textContent) continue;
+    regex.lastIndex = 0;
+    if (regex.test(node.textContent)) {
+      textNodes.push({ node, parent: node.parentElement as Element });
+    }
+  }
+
+  for (const { node, parent } of textNodes) {
+    if (!parent || !node.textContent) continue;
+    const text = node.textContent;
+    regex.lastIndex = 0;
+
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      const highlight = document.createElement("span");
+      highlight.className = "sh-search-highlight";
+      highlight.textContent = match[0];
+      fragment.appendChild(highlight);
+      lastIndex = match.index + match[0].length;
+      if (match.index === regex.lastIndex) regex.lastIndex++;
+    }
+    if (lastIndex < text.length) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    parent.replaceChild(fragment, node);
+  }
+
+  const firstHighlight = container.querySelector(".sh-search-highlight");
+  if (firstHighlight) {
+    firstHighlight.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }

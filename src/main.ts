@@ -3,10 +3,11 @@ import { setupVersioning } from "./versioning";
 import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, translate, type Language } from "./locale";
-import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath, updateSnapshotRecordsAfterRename } from "./storage";
+import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath } from "./storage";
 import { AutosaveManager } from "./autosave";
 
 export type GroupByMode = "none" | "day" | "week" | "month" | "year";
+type Versioning = ReturnType<typeof setupVersioning>;
 
 export interface PerFileSettings {
   autosaveInterval?: number;
@@ -44,22 +45,23 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
 export class SaveHistoryPlugin extends Plugin {
   settings: SaveHistorySettings = DEFAULT_SETTINGS;
   autosaveManager: AutosaveManager | null = null;
+  versioning!: Versioning;
   private lastActiveFile: TFile | null = null;
   private tabCloseEventRef: EventRef | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
 
-    const versioning = setupVersioning(this);
+    this.versioning = setupVersioning(this);
 
     this.registerView(
       VIEW_TYPE_SAVE_HISTORY,
-      (leaf) => new SaveHistoryView(leaf, this, versioning)
+      (leaf) => new SaveHistoryView(leaf, this, this.versioning)
     );
 
-    registerCommands(this, versioning);
+    registerCommands(this, this.versioning);
 
-    this.autosaveManager = new AutosaveManager(this, versioning);
+    this.autosaveManager = new AutosaveManager(this, this.versioning);
     this.autosaveManager.start();
 
     this.registerTabCloseListener();
@@ -106,8 +108,6 @@ export class SaveHistoryPlugin extends Plugin {
           }
         };
         refreshViews();
-        // Refresh again after rename completes
-        void renamePromise.then(refreshViews).catch(() => {});
 
         // Update perFileSettings keys (fast — memory only)
         const isFolder = file instanceof TFolder;
@@ -130,11 +130,11 @@ export class SaveHistoryPlugin extends Plugin {
         }
         if (keysToUpdate.length > 0) await this.saveSettings();
 
-        // Update SnapshotRecord.path in background
-        void updateSnapshotRecordsAfterRename(this, oldPath, file.path, isFolder);
+        // Refresh sidebar after rename completes
+        void renamePromise.then(refreshViews).catch(() => {});
 
         const parentDir = oldDir.substring(0, oldDir.lastIndexOf("/"));
-        await removeEmptyParentDirs(this, parentDir);
+        void removeEmptyParentDirs(this, parentDir);
       })
     );
     this.registerEvent(
@@ -176,7 +176,7 @@ export class SaveHistoryPlugin extends Plugin {
                     for (const snap of snapshots) {
                       const d = new Date(snap.timestamp);
                       const safeTs = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
-                      const fileName = `${snap.reason}_${safeTs}.${file.extension}`;
+                      const fileName = `${snap.name}_${safeTs}.${file.extension}`;
                       const fh = await folderHandle.getFileHandle(fileName, { create: true });
                       const writable = await fh.createWritable();
                       await writable.write(snap.content);
@@ -197,7 +197,7 @@ export class SaveHistoryPlugin extends Plugin {
               for (const snap of snapshots) {
                 const d = new Date(snap.timestamp);
                 const safeTs = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}-${String(d.getMinutes()).padStart(2, "0")}-${String(d.getSeconds()).padStart(2, "0")}`;
-                const fileName = `${baseName}_${snap.reason}_${safeTs}.${file.extension}`;
+                const fileName = `${baseName}_${snap.name}_${safeTs}.${file.extension}`;
                 await adapter.write(`${exportDir}/${fileName}`, snap.content);
               }
               this.toast(translate("exportAllSuccess", { path: exportDir }));
@@ -235,9 +235,9 @@ export class SaveHistoryPlugin extends Plugin {
                     } else {
                       try {
                         const record = JSON.parse(raw) as Record<string, unknown>;
-                        if (typeof record.path === "string" && typeof record.content === "string" && typeof record.timestamp === "string") {
+                        if (typeof record.content === "string" && typeof record.timestamp === "string") {
                           const ts = new Date(record.timestamp).toISOString();
-                          await saveSnapshotContent(this, file.path, ts, record.content, typeof record.reason === "string" ? record.reason : "import");
+                          await saveSnapshotContent(this, file.path, ts, record.content, typeof record.name === "string" ? record.name : typeof record.reason === "string" ? record.reason : "import");
                         } else {
                           const ts = new Date(now + i).toISOString();
                           await saveSnapshotContent(this, file.path, ts, raw, nameNoExt);
@@ -382,6 +382,10 @@ export class SaveHistoryPlugin extends Plugin {
       }
     }
     return set;
+  }
+
+  refreshCommands(): void {
+    registerCommands(this, this.versioning);
   }
 
   toast(message: string) {

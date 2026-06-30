@@ -134,6 +134,7 @@ declare module "obsidian" {
   export interface WorkspaceLeaf {
     view: ItemView;
     setViewState(state: Record<string, unknown>): Promise<void>;
+    openFile(file: TFile): Promise<void>;
   }
 
   export class Plugin extends Component {
@@ -168,7 +169,9 @@ declare module "obsidian" {
     getActiveFile(): TFile | null;
     getLeavesOfType(type: string): WorkspaceLeaf[];
     getRightLeaf(split: boolean): WorkspaceLeaf | null;
+    getLeaf(nav?: boolean | "split" | "tab" | "window"): WorkspaceLeaf;
     revealLeaf(leaf: WorkspaceLeaf): void;
+    iterateAllLeaves(callback: (leaf: WorkspaceLeaf) => unknown): void;
     on(name: "file-open", callback: (file: TFile | null) => unknown): EventRef;
     on(name: "active-leaf-change", callback: () => unknown): EventRef;
     on(name: "file-menu", callback: (menu: Menu, file: TAbstractFile, source: string) => unknown): EventRef;

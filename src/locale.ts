@@ -148,6 +148,16 @@ type TranslationKeys = {
   unlimited: string;
   resetToGlobal: string;
   langSystem: string;
+
+  // Search
+  searchSnapshotsCmd: string;
+  searchSnapshotsCmdDesc: string;
+  searchInputPlaceholder: string;
+  searchNoResults: string;
+  searchResultsCount: string;
+  searchLoading: string;
+  searchCurrentFile: string;
+  searchOtherFiles: string;
 };
 
 const en: TranslationKeys = {
@@ -283,6 +293,15 @@ const en: TranslationKeys = {
   unlimited: "Unlimited",
   resetToGlobal: "Reset to global settings",
   langSystem: "System language",
+
+  searchSnapshotsCmd: "Search all versions",
+  searchSnapshotsCmdDesc: "Search across all saved versions",
+  searchInputPlaceholder: "Search version content, filename, label\u2026",
+  searchNoResults: "No results found",
+  searchResultsCount: "{n} result(s)",
+  searchLoading: "Searching\u2026",
+  searchCurrentFile: "Current file",
+  searchOtherFiles: "Other files",
 };
 
 const ru: TranslationKeys = {
@@ -418,6 +437,15 @@ const ru: TranslationKeys = {
   unlimited: "Без ограничений",
   resetToGlobal: "Сбросить к глобальным настройкам",
   langSystem: "Язык системы",
+
+  searchSnapshotsCmd: "Поиск по всем версиям",
+  searchSnapshotsCmdDesc: "Поиск по всем сохранённым версиям",
+  searchInputPlaceholder: "Поиск по содержимому, имени файла, метке\u2026",
+  searchNoResults: "Ничего не найдено",
+  searchResultsCount: "Найдено: {n}",
+  searchLoading: "Поиск\u2026",
+  searchCurrentFile: "Текущий файл",
+  searchOtherFiles: "Другие файлы",
 };
 
 const es: TranslationKeys = {
@@ -553,6 +581,15 @@ const es: TranslationKeys = {
   unlimited: "Sin límite",
   resetToGlobal: "Restablecer a configuración global",
   langSystem: "Idioma del sistema",
+
+  searchSnapshotsCmd: "Buscar en todas las versiones",
+  searchSnapshotsCmdDesc: "Buscar en todas las versiones guardadas",
+  searchInputPlaceholder: "Buscar en contenido, nombre de archivo, etiqueta\u2026",
+  searchNoResults: "Sin resultados",
+  searchResultsCount: "{n} resultado(s)",
+  searchLoading: "Buscando\u2026",
+  searchCurrentFile: "Archivo actual",
+  searchOtherFiles: "Otros archivos",
 };
 
 const translations: Record<Language, TranslationKeys> = { en, ru, es };

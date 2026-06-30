@@ -2,11 +2,18 @@ import { DataAdapter } from "obsidian";
 import { SaveHistoryPlugin } from "./main";
 
 export type SnapshotRecord = {
-  path: string; // vault-relative
   timestamp: string; // ISO
   content: string;
-  reason: string;
+  name: string;
 };
+
+export function normalizeRecord(raw: Record<string, unknown>): SnapshotRecord {
+  return {
+    timestamp: String(raw.timestamp ?? ""),
+    content: String(raw.content ?? ""),
+    name: String(raw.name ?? raw.reason ?? ""),
+  };
+}
 
 const LEGACY_SNAPSHOT_ROOT = ".versions(SH)";
 
@@ -48,11 +55,11 @@ export async function saveSnapshotContent(
   vaultRelativePath: string,
   timestamp: string,
   content: string,
-  reason: string
+  name: string
 ) {
   await ensureSnapshotDir(plugin, vaultRelativePath);
 
-  const record: SnapshotRecord = { path: vaultRelativePath, timestamp, content, reason };
+  const record: SnapshotRecord = { timestamp, content, name };
   const filePath = getSnapshotFilePath(plugin, vaultRelativePath, timestamp);
   const adapter = plugin.app.vault.adapter;
 
@@ -88,7 +95,7 @@ export async function listSnapshotsForFile(
     try {
       const json = await adapter.read(fullVaultPath);
       if (json) {
-        const record = JSON.parse(json) as SnapshotRecord;
+        const record = normalizeRecord(JSON.parse(json));
         snapshots.push({
           ...record,
           filePath: fullVaultPath
@@ -116,7 +123,7 @@ export async function readSnapshotContent(
 
   try {
     const json = await adapter.read(filePath);
-    return JSON.parse(json) as SnapshotRecord;
+    return normalizeRecord(JSON.parse(json));
   } catch {
     return null;
   }
@@ -146,7 +153,7 @@ export async function deleteOldestAutosaves(
   keepCount: number
 ): Promise<void> {
   const snapshots = await listSnapshotsForFile(plugin, vaultRelativePath);
-  const autosaves = snapshots.filter(s => s.reason === "autosave");
+  const autosaves = snapshots.filter(s => s.name === "autosave");
 
   if (autosaves.length <= keepCount) return;
 
@@ -207,8 +214,8 @@ export async function updateSnapshotLabel(
   if (await adapter.exists(filePath)) {
     try {
       const json = await adapter.read(filePath);
-      const record = JSON.parse(json) as SnapshotRecord;
-      record.reason = newLabel;
+      const record = normalizeRecord(JSON.parse(json));
+      record.name = newLabel;
       await adapter.write(filePath, JSON.stringify(record, null, 2));
       return true;
     } catch {
@@ -237,8 +244,8 @@ export async function savePreRestoreBackup(
         if (fullVaultPath.endsWith(".json")) {
           try {
             const json = await adapter.read(fullVaultPath);
-            const record = JSON.parse(json) as SnapshotRecord;
-            if (record.reason === "pre-restore") {
+            const record = normalizeRecord(JSON.parse(json));
+            if (record.name === "pre-restore") {
               return;
             }
           } catch {
@@ -495,6 +502,143 @@ export async function renameExportFolder(adapter: DataAdapter, oldName: string, 
   }
 }
 
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getMatchRanges(content: string, query: string): { start: number; end: number }[] {
+  if (!query || !content) return [];
+
+  let regex: RegExp;
+  try {
+    regex = new RegExp(query, "gi");
+  } catch {
+    regex = new RegExp(escapeRegex(query), "gi");
+  }
+
+  const ranges: { start: number; end: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(content)) !== null) {
+    ranges.push({ start: match.index, end: match.index + match[0].length });
+    if (match.index === regex.lastIndex) regex.lastIndex++;
+  }
+
+  return ranges;
+}
+
+function generateSnippet(content: string, query: string): string {
+  const ranges = getMatchRanges(content, query);
+  if (ranges.length === 0) return content.slice(0, 200);
+
+  const first = ranges[0];
+  const snippetLen = 200;
+  const halfSnippet = Math.floor(snippetLen / 2);
+  let start = Math.max(0, first.start - halfSnippet);
+  let end = Math.min(content.length, first.end + halfSnippet);
+
+  let snippet = content.slice(start, end);
+  if (start > 0) snippet = "\u2026" + snippet;
+  if (end < content.length) snippet = snippet + "\u2026";
+
+  return snippet;
+}
+
+export function derivePathFromSnapshotFile(plugin: SaveHistoryPlugin, filePath: string): string {
+  const root = getSnapshotRoot(plugin);
+  const normalized = filePath.replace(/\\/g, "/");
+  const prefix = root + "/";
+  if (!normalized.startsWith(prefix)) return "";
+  const afterRoot = normalized.slice(prefix.length);
+  const lastSlash = afterRoot.lastIndexOf("/");
+  if (lastSlash < 0) return "";
+  return afterRoot.slice(0, lastSlash);
+}
+
+export type SearchMatch = SnapshotRecord & {
+  filePath: string;
+  path: string;
+  snippet: string;
+  isCurrentFile: boolean;
+};
+
+export async function searchSnapshots(
+  plugin: SaveHistoryPlugin,
+  query: string
+): Promise<SearchMatch[]> {
+  if (!query.trim()) return [];
+
+  const root = getSnapshotRoot(plugin);
+  const adapter = plugin.app.vault.adapter;
+  const results: SearchMatch[] = [];
+  const queryTrimmed = query.trim();
+  const currentFilePath = plugin.getActiveFile()?.path ?? "";
+
+  await walkJsonFiles(adapter, root, async (filePath) => {
+    try {
+      const json = await adapter.read(filePath);
+      const record = normalizeRecord(JSON.parse(json));
+      const derivedPath = derivePathFromSnapshotFile(plugin, filePath);
+
+      const ranges = getMatchRanges(record.content, queryTrimmed);
+      if (ranges.length > 0) {
+        const snippet = generateSnippet(record.content, queryTrimmed);
+        results.push({
+          ...record,
+          filePath,
+          path: derivedPath,
+          snippet,
+          isCurrentFile: derivedPath === currentFilePath,
+        });
+        return;
+      }
+
+      if (getMatchRanges(derivedPath, queryTrimmed).length > 0) {
+        results.push({
+          ...record,
+          filePath,
+          path: derivedPath,
+          snippet: derivedPath,
+          isCurrentFile: derivedPath === currentFilePath,
+        });
+        return;
+      }
+
+      if (getMatchRanges(record.name, queryTrimmed).length > 0) {
+        results.push({
+          ...record,
+          filePath,
+          path: derivedPath,
+          snippet: record.name,
+          isCurrentFile: derivedPath === currentFilePath,
+        });
+        return;
+      }
+
+      if (getMatchRanges(record.timestamp, queryTrimmed).length > 0) {
+        results.push({
+          ...record,
+          filePath,
+          path: derivedPath,
+          snippet: record.timestamp,
+          isCurrentFile: derivedPath === currentFilePath,
+        });
+        return;
+      }
+    } catch {
+      // skip invalid files
+    }
+  });
+
+  results.sort((a, b) => {
+    if (a.isCurrentFile !== b.isCurrentFile) {
+      return a.isCurrentFile ? -1 : 1;
+    }
+    return a.timestamp > b.timestamp ? -1 : 1;
+  });
+
+  return results;
+}
+
 export async function removeEmptyParentDirs(plugin: SaveHistoryPlugin, dirPath: string) {
   const snapshotRoot = getSnapshotRoot(plugin);
   let currentDir = dirPath.replace(/\\/g, "/");
@@ -559,33 +703,4 @@ async function walkJsonFiles(
   await Promise.all(jsonFiles.map(callback));
 }
 
-export async function updateSnapshotRecordsAfterRename(
-  plugin: SaveHistoryPlugin,
-  oldPath: string,
-  newPath: string,
-  isFolder: boolean
-): Promise<void> {
-  const snapshotDir = getSnapshotDirPath(plugin, newPath);
-  const adapter = plugin.app.vault.adapter;
 
-  await walkJsonFiles(adapter, snapshotDir, async (filePath) => {
-    try {
-      const content = await adapter.read(filePath);
-      const record = JSON.parse(content) as SnapshotRecord;
-
-      if (isFolder) {
-        if (record.path === oldPath || record.path.startsWith(oldPath + "/")) {
-          record.path = newPath + record.path.substring(oldPath.length);
-        }
-      } else {
-        if (record.path === oldPath) {
-          record.path = newPath;
-        }
-      }
-
-      await adapter.write(filePath, JSON.stringify(record, null, 2));
-    } catch {
-      // skip invalid files
-    }
-  });
-}
