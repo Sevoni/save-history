@@ -1777,11 +1777,12 @@ export class SearchSnapshotsModal extends Modal {
 
       const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
-      const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, match.path);
+      const previewPath = sourceFile instanceof TFile ? sourceFile.path : match.path;
+      const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, previewPath);
       resolvedContent.then(async (resolved) => {
         if (ext === "md") {
           try {
-            await MarkdownRenderer.render(this.plugin.app, resolved, content, match.path, previewModal);
+            await MarkdownRenderer.render(this.plugin.app, resolved, content, previewPath, this.plugin);
           } catch {
             content.createEl("pre", { cls: "sh-raw-pre", text: resolved });
           }
@@ -1827,6 +1828,7 @@ export class SearchSnapshotsModal extends Modal {
 
 function highlightInDom(container: HTMLElement, query: string) {
   if (!query) return;
+  const doc = container.ownerDocument ?? document;
 
   let regex: RegExp;
   try {
@@ -1836,7 +1838,7 @@ function highlightInDom(container: HTMLElement, query: string) {
   }
 
   const textNodes: { node: Text; parent: Element }[] = [];
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+  const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
 
   while (walker.nextNode()) {
     const node = walker.currentNode as Text;
@@ -1852,14 +1854,14 @@ function highlightInDom(container: HTMLElement, query: string) {
     const text = node.textContent;
     regex.lastIndex = 0;
 
-    const fragment = document.createDocumentFragment();
+    const fragment = doc.createDocumentFragment();
     let lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
       if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        fragment.appendChild(doc.createTextNode(text.slice(lastIndex, match.index)));
       }
-      const highlight = document.createElement("span");
+      const highlight = doc.createElement("span");
       highlight.className = "sh-search-highlight";
       highlight.textContent = match[0];
       fragment.appendChild(highlight);
@@ -1867,7 +1869,7 @@ function highlightInDom(container: HTMLElement, query: string) {
       if (match.index === regex.lastIndex) regex.lastIndex++;
     }
     if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+      fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
     }
     parent.replaceChild(fragment, node);
   }
