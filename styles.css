@@ -855,3 +855,36 @@
   border-top: none;
   margin-top: 0;
 }
+.sh-search-match-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+.sh-search-match-counter {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  min-width: 4em;
+  text-align: center;
+}
+.sh-search-match-btn {
+  padding: 2px 8px;
+  font-size: 0.85em;
+  cursor: pointer;
+  line-height: 1;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+}
+.sh-search-match-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+.sh-search-match-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sh-search-highlight-current {
+  border-bottom: 2px solid var(--color-accent);
+}

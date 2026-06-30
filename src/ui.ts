@@ -1775,6 +1775,9 @@ export class SearchSnapshotsModal extends Modal {
       const date = new Date(match.timestamp);
       timeEl.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
 
+      const matchNav = el.createDiv({ cls: "sh-search-match-nav" });
+      matchNav.style.display = "none";
+
       const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
       const previewPath = sourceFile instanceof TFile ? sourceFile.path : match.path;
@@ -1791,6 +1794,38 @@ export class SearchSnapshotsModal extends Modal {
         }
         if (this.query.trim()) {
           highlightInDom(content, this.query.trim());
+
+          const highlights = content.querySelectorAll<HTMLElement>(".sh-search-highlight");
+          if (highlights.length > 0) {
+            matchNav.style.display = "";
+            matchNav.empty();
+
+            const counter = matchNav.createEl("span", { cls: "sh-search-match-counter" });
+            const prevBtn = matchNav.createEl("button", { text: "\u25C0", cls: "sh-search-match-btn" });
+            const nextBtn = matchNav.createEl("button", { text: "\u25B6", cls: "sh-search-match-btn" });
+
+            let currentMatch = 0;
+
+            const updateNav = () => {
+              counter.textContent = `${currentMatch + 1} / ${highlights.length}`;
+              prevBtn.disabled = currentMatch === 0;
+              nextBtn.disabled = currentMatch === highlights.length - 1;
+            };
+
+            const scrollTo = (idx: number) => {
+              highlights[currentMatch]?.classList.remove("sh-search-highlight-current");
+              currentMatch = idx;
+              highlights[currentMatch].classList.add("sh-search-highlight-current");
+              highlights[currentMatch].scrollIntoView({ behavior: "smooth", block: "center" });
+              updateNav();
+            };
+
+            prevBtn.onclick = () => { if (currentMatch > 0) scrollTo(currentMatch - 1); };
+            nextBtn.onclick = () => { if (currentMatch < highlights.length - 1) scrollTo(currentMatch + 1); };
+
+            highlights[0].classList.add("sh-search-highlight-current");
+            updateNav();
+          }
         }
       }).catch(() => {});
 
