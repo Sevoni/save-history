@@ -506,15 +506,41 @@ export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+export function createSearchRegex(query: string): RegExp {
+  if (!query) return /(?!)/gi;
+
+  if (query.includes("*") || query.includes("?") || query.includes("\\")) {
+    let pattern = "";
+    for (let i = 0; i < query.length; i++) {
+      const c = query[i];
+      if (c === "\\" && i + 1 < query.length) {
+        const next = query[i + 1];
+        if (next === "?") { pattern += "\\?"; i++; }
+        else if (next === "*") { pattern += "\\*"; i++; }
+        else if (next === "\\") { pattern += "\\\\"; i++; }
+        else { pattern += "\\\\"; }
+      } else if (c === "?") {
+        pattern += ".";
+      } else if (c === "*") {
+        pattern += ".*";
+      } else {
+        pattern += /[.+^${}()|[\]\\]/.test(c) ? "\\" + c : c;
+      }
+    }
+    return new RegExp(pattern, "gi");
+  }
+
+  try {
+    return new RegExp(query, "gi");
+  } catch {
+    return new RegExp(escapeRegex(query), "gi");
+  }
+}
+
 function getMatchRanges(content: string, query: string): { start: number; end: number }[] {
   if (!query || !content) return [];
 
-  let regex: RegExp;
-  try {
-    regex = new RegExp(query, "gi");
-  } catch {
-    regex = new RegExp(escapeRegex(query), "gi");
-  }
+  const regex = createSearchRegex(query);
 
   const ranges: { start: number; end: number }[] = [];
   let match: RegExpExecArray | null;
@@ -603,23 +629,13 @@ export async function searchSnapshots(
         return;
       }
 
-      if (getMatchRanges(record.name, queryTrimmed).length > 0) {
+      const localTimeStr = new Date(record.timestamp).toLocaleString();
+      if (getMatchRanges(localTimeStr, queryTrimmed).length > 0) {
         results.push({
           ...record,
           filePath,
           path: derivedPath,
-          snippet: record.name,
-          isCurrentFile: derivedPath === currentFilePath,
-        });
-        return;
-      }
-
-      if (getMatchRanges(record.timestamp, queryTrimmed).length > 0) {
-        results.push({
-          ...record,
-          filePath,
-          path: derivedPath,
-          snippet: record.timestamp,
+          snippet: localTimeStr,
           isCurrentFile: derivedPath === currentFilePath,
         });
         return;

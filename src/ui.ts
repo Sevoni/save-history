@@ -1,6 +1,6 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component, setIcon } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
-import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath, searchSnapshots, escapeRegex } from "./storage";
+import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath, searchSnapshots, createSearchRegex } from "./storage";
 import type { SnapshotRecord, SearchMatch } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 import { translate, getLocale } from "./locale";
@@ -1722,12 +1722,7 @@ export class SearchSnapshotsModal extends Modal {
       return;
     }
 
-    let regex: RegExp;
-    try {
-      regex = new RegExp(`(${this.query.trim()})`, "gi");
-    } catch {
-      regex = new RegExp(`(${escapeRegex(this.query.trim())})`, "gi");
-    }
+    const regex = createSearchRegex(this.query.trim());
 
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -1865,12 +1860,7 @@ function highlightInDom(container: HTMLElement, query: string) {
   if (!query) return;
   const doc = container.ownerDocument ?? document;
 
-  let regex: RegExp;
-  try {
-    regex = new RegExp(query, "gi");
-  } catch {
-    regex = new RegExp(escapeRegex(query), "gi");
-  }
+  const regex = createSearchRegex(query);
 
   const textNodes: { node: Text; parent: Element }[] = [];
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
