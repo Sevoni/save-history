@@ -19,7 +19,7 @@ export function normalizeRecord(raw: Record<string, unknown>): SnapshotRecord {
 
 const LEGACY_SNAPSHOT_ROOT = ".versions(SH)";
 
-function getSnapshotRoot(plugin: SaveHistoryPlugin): string {
+export function getSnapshotRoot(plugin: SaveHistoryPlugin): string {
   return plugin.settings.snapshotFolder || LEGACY_SNAPSHOT_ROOT;
 }
 
@@ -741,6 +741,46 @@ async function walkJsonFiles(
   }
 
   await Promise.all(jsonFiles.map(callback));
+}
+
+export async function writeTempVersionFile(
+  plugin: SaveHistoryPlugin,
+  sourceFilePath: string,
+  timestamp: string,
+  content: string
+): Promise<string> {
+  const root = getSnapshotRoot(plugin);
+  const tmpDir = `${root}/.tmp`;
+  const adapter = plugin.app.vault.adapter;
+
+  if (!(await adapter.exists(tmpDir))) {
+    await adapter.mkdir(tmpDir);
+  }
+
+  const sourceName = sourceFilePath.split("/").pop() || "unknown";
+  const baseName = sourceName.replace(/\.[^.]+$/, "");
+  const ext = sourceName.includes(".") ? sourceName.split(".").pop()! : "md";
+  const safeTs = timestamp.replace(/:/g, "-");
+  const random = Math.random().toString(36).substring(2, 8);
+  const fileName = `${baseName}_${safeTs}_${random}.${ext}`;
+  const filePath = `${tmpDir}/${fileName}`;
+
+  await adapter.write(filePath, content);
+  return filePath;
+}
+
+export async function deleteTempVersionFile(
+  plugin: SaveHistoryPlugin,
+  tempFilePath: string
+): Promise<void> {
+  const adapter = plugin.app.vault.adapter;
+  try {
+    if (await adapter.exists(tempFilePath)) {
+      await adapter.remove(tempFilePath);
+    }
+  } catch {
+    // ignore
+  }
 }
 
 

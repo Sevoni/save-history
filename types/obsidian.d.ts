@@ -175,6 +175,7 @@ declare module "obsidian" {
     on(name: "file-open", callback: (file: TFile | null) => unknown): EventRef;
     on(name: "active-leaf-change", callback: () => unknown): EventRef;
     on(name: "file-menu", callback: (menu: Menu, file: TAbstractFile, source: string) => unknown): EventRef;
+    on(name: "layout-change", callback: () => unknown): EventRef;
     offref(ref: EventRef): void;
   }
 
@@ -194,6 +195,7 @@ declare module "obsidian" {
     read(file: TFile): Promise<string>;
     modify(file: TFile, data: string): Promise<void>;
     create(path: string, data: string): Promise<TFile>;
+    createFolder(path: string): Promise<void>;
     getAbstractFileByPath(path: string): TFile | TFolder | null;
     on(name: "rename", callback: (file: TAbstractFile, oldPath: string) => unknown): EventRef;
     on(name: "delete", callback: (file: TAbstractFile) => unknown): EventRef;

@@ -237,9 +237,25 @@ export class SaveHistorySettingTab extends PluginSettingTab {
 						this.plugin.settings.allowedExtensions = val.trim();
 						await this.plugin.saveSettings();
 					})();
-				});
-			});
-	}
+        });
+      });
+
+    // Preview mode
+    new Setting(this.containerEl)
+      .setName(translate("previewMode"))
+      .setDesc(translate("previewModeDesc"))
+      .addDropdown((dropdown) => {
+        dropdown.addOption("modal", translate("previewModeModal"));
+        dropdown.addOption("tab", translate("previewModeTab"));
+        dropdown.setValue(this.plugin.settings.previewMode);
+        dropdown.onChange((val) => {
+          void (async () => {
+            this.plugin.settings.previewMode = val as "modal" | "tab";
+            await this.plugin.saveSettings();
+          })();
+        });
+      });
+  }
 
 	private refreshSidebarViews() {
 		const leaves =

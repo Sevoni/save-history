@@ -1,6 +1,6 @@
 import { Notice, Plugin, TFile, TFolder, TAbstractFile, Menu, MenuItem, EventRef } from "obsidian";
 import { setupVersioning } from "./versioning";
-import { registerCommands, SaveHistoryView, VIEW_TYPE_SAVE_HISTORY } from "./ui";
+import { registerCommands, SaveHistoryView, PreviewTabView, VIEW_TYPE_SAVE_HISTORY, VIEW_TYPE_PREVIEW } from "./ui";
 import { SaveHistorySettingTab } from "./settings";
 import { setLanguage, translate, type Language } from "./locale";
 import { getSnapshotDirPath, renameSnapshotFolder, removeEmptyParentDirs, deleteSnapshotDirForFile, listSnapshotsForFile, saveSnapshotContent, ensureExportDir, getExportFolderPath } from "./storage";
@@ -26,6 +26,7 @@ export interface SaveHistorySettings {
   autosaveOnTabClose: boolean;
   maxAutosaveVersions: number;
   allowedExtensions: string;
+  previewMode: "modal" | "tab";
   perFileSettings: Record<string, PerFileSettings>;
 }
 
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: SaveHistorySettings = {
   autosaveOnTabClose: false,
   maxAutosaveVersions: 0,
   allowedExtensions: "",
+  previewMode: "modal",
   perFileSettings: {},
 };
 
@@ -57,6 +59,10 @@ export class SaveHistoryPlugin extends Plugin {
     this.registerView(
       VIEW_TYPE_SAVE_HISTORY,
       (leaf) => new SaveHistoryView(leaf, this, this.versioning)
+    );
+    this.registerView(
+      VIEW_TYPE_PREVIEW,
+      (leaf) => new PreviewTabView(leaf, this)
     );
 
     registerCommands(this, this.versioning);
@@ -362,6 +368,8 @@ export class SaveHistoryPlugin extends Plugin {
   getActiveFile(): TFile | null {
     const file = this.app.workspace.getActiveFile();
     if (!file) return null;
+    const root = this.settings.snapshotFolder || ".versions(SH)";
+    if (file.path.startsWith(root + "/")) return null;
     if (!this.isExtensionAllowed(file.extension)) return null;
     return file;
   }

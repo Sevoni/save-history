@@ -142,6 +142,10 @@ type TranslationKeys = {
   maxAutosaveVersionsDesc: string;
   allowedExtensions: string;
   allowedExtensionsDesc: string;
+  previewMode: string;
+  previewModeDesc: string;
+  previewModeModal: string;
+  previewModeTab: string;
   settings: string;
   on: string;
   off: string;
@@ -293,6 +297,10 @@ const en: TranslationKeys = {
   maxAutosaveVersionsDesc: "Maximum number of autosaved versions per file. 0 = unlimited.",
   allowedExtensions: "Allowed file extensions",
   allowedExtensionsDesc: "Space or comma separated extensions. .md is always included. Example: json css js html",
+  previewMode: "Preview mode",
+  previewModeDesc: "How to display saved version previews.",
+  previewModeModal: "Modal window",
+  previewModeTab: "Preview in new tab",
   settings: "Settings",
   on: "On",
   off: "Off",
@@ -442,6 +450,10 @@ const ru: TranslationKeys = {
   maxAutosaveVersionsDesc: "Максимальное количество автосохранённых версий на файл. 0 — без ограничений.",
   allowedExtensions: "Разрешённые расширения файлов",
   allowedExtensionsDesc: "Расширения через пробел или запятую. .md всегда включён. Пример: json css js html",
+  previewMode: "Режим просмотра",
+  previewModeDesc: "Как отображать предпросмотр сохранённых версий.",
+  previewModeModal: "Модальное окно",
+  previewModeTab: "Просмотр в новой вкладке",
   settings: "Настройки",
   on: "Вкл",
   off: "Выкл",
@@ -591,6 +603,10 @@ const es: TranslationKeys = {
   maxAutosaveVersionsDesc: "Número máximo de versiones automáticas por archivo. 0 = sin límite.",
   allowedExtensions: "Extensiones de archivo permitidas",
   allowedExtensionsDesc: "Extensiones separadas por espacio o coma. .md siempre está incluido. Ejemplo: json css js html",
+  previewMode: "Modo de vista previa",
+  previewModeDesc: "Cómo mostrar las vistas previas de versiones guardadas.",
+  previewModeModal: "Ventana modal",
+  previewModeTab: "Vista previa en nueva pestaña",
   settings: "Configuración",
   on: "Activado",
   off: "Desactivado",

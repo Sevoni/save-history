@@ -71,6 +71,58 @@ async function resolveImagesInMarkdown(plugin: SaveHistoryPlugin, markdown: stri
 }
 
 export const VIEW_TYPE_SAVE_HISTORY = "save-history-view";
+export const VIEW_TYPE_PREVIEW = "save-history-preview";
+
+export class PreviewTabView extends ItemView {
+  private plugin: SaveHistoryPlugin;
+  private content: string = "";
+  private fileName: string = "";
+  private contentEl: HTMLElement | null = null;
+  private fileNameEl: HTMLElement | null = null;
+
+  constructor(leaf: WorkspaceLeaf, plugin: SaveHistoryPlugin) {
+    super(leaf);
+    this.plugin = plugin;
+  }
+
+  getViewType(): string {
+    return VIEW_TYPE_PREVIEW;
+  }
+
+  getDisplayText(): string {
+    return this.fileName || translate("preview");
+  }
+
+  getIcon(): string {
+    return "search";
+  }
+
+  async onOpen() {
+    this.containerEl.empty();
+    this.fileNameEl = this.containerEl.createEl("h3", { cls: "sh-preview-tab-title" });
+    this.contentEl = this.containerEl.createDiv({ cls: "sh-preview-tab-body" });
+    if (this.content) this.renderContent();
+  }
+
+  setContent(content: string, fileName: string) {
+    this.content = content;
+    this.fileName = fileName;
+    if (this.fileNameEl) this.fileNameEl.textContent = this.fileName;
+    if (this.contentEl) this.renderContent();
+  }
+
+  private renderContent() {
+    if (!this.contentEl) return;
+    this.contentEl.empty();
+    void MarkdownRenderer.render(
+      this.plugin.app,
+      this.content,
+      this.contentEl,
+      "/",
+      this
+    );
+  }
+}
 
 export function registerCommands(plugin: SaveHistoryPlugin, versioning: Versioning) {
   plugin.addCommand?.({
@@ -1017,6 +1069,12 @@ export class SaveHistoryView extends ItemView {
     previewBtn.onclick = async () => {
       const curFile = this.plugin.getActiveFile();
       if (!curFile) return;
+
+      if (this.plugin.settings.previewMode === "tab") {
+        await this.openTempVersion(snap, curFile);
+        return;
+      }
+
       const restored = await readSnapshotContent(this.plugin, snap.filePath);
       if (!restored) return;
 
@@ -1103,6 +1161,17 @@ export class SaveHistoryView extends ItemView {
       previewModal.open();
     };
 
+  }
+
+  private async openTempVersion(snap: SnapshotRecord & { filePath: string }, activeFile: TFile) {
+    const restored = await readSnapshotContent(this.plugin, snap.filePath);
+    if (!restored) return;
+
+    const leaf = this.plugin.app.workspace.getLeaf("tab");
+    await leaf.setViewState({ type: VIEW_TYPE_PREVIEW, active: true });
+    const view = leaf.view as PreviewTabView;
+    view.setContent(restored.content, activeFile.name);
+    this.plugin.app.workspace.revealLeaf(leaf);
   }
 
   refresh(): void {
@@ -1794,6 +1863,16 @@ export class SearchSnapshotsModal extends Modal {
     const restored = await readSnapshotContent(this.plugin, match.filePath);
     if (!restored) {
       this.plugin.toast(translate("failedLoadSnapshot"));
+      return;
+    }
+
+    if (this.plugin.settings.previewMode === "tab") {
+      if (!(sourceFile instanceof TFile)) return;
+      const leaf = this.plugin.app.workspace.getLeaf("tab");
+      await leaf.setViewState({ type: VIEW_TYPE_PREVIEW, active: true });
+      const view = leaf.view as PreviewTabView;
+      view.setContent(restored.content, sourceFile.name);
+      this.plugin.app.workspace.revealLeaf(leaf);
       return;
     }
 
