@@ -1026,6 +1026,7 @@ export class SaveHistoryView extends ItemView {
         const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
         const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, curFile.path);
+        let rendered = true;
         resolvedContent.then((resolved) => {
           if (curFile.extension === "md") {
             void MarkdownRenderer.render(this.plugin.app, resolved, content, curFile.path, this);
@@ -1046,6 +1047,32 @@ export class SaveHistoryView extends ItemView {
           this.plugin.toast(translate("versionRestored"));
           previewModal.close();
           this.refresh();
+        };
+
+        const viewRawBtn = btnRow.createEl("button", { text: translate("viewRaw") });
+        viewRawBtn.onclick = () => {
+          const savedScroll = content.scrollTop;
+          if (rendered) {
+            rendered = false;
+            content.empty();
+            const pre = content.createEl("pre", { cls: "sh-raw-pre" });
+            pre.textContent = restored.content;
+            content.scrollTop = savedScroll;
+            viewRawBtn.textContent = translate("viewRendered");
+          } else {
+            rendered = true;
+            content.empty();
+            resolvedContent.then(async (resolved) => {
+              if (curFile.extension === "md") {
+                await MarkdownRenderer.render(this.plugin.app, resolved, content, curFile.path, this);
+              } else {
+                const pre = content.createEl("pre", { cls: "sh-raw-pre" });
+                pre.textContent = resolved;
+              }
+              content.scrollTop = savedScroll;
+            }).catch(() => {});
+            viewRawBtn.textContent = translate("viewRaw");
+          }
         };
 
         const cls = btnRow.createEl("button", { text: translate("close") });
@@ -1691,6 +1718,7 @@ export class SearchSnapshotsModal extends Modal {
     this.highlightText(snippetEl, match.snippet);
 
     item.onclick = () => {
+      const queryAtClick = this.query;
       void (async () => {
         const sourceFile = this.plugin.app.vault.getAbstractFileByPath(match.path);
         if (sourceFile instanceof TFile) {
@@ -1711,7 +1739,7 @@ export class SearchSnapshotsModal extends Modal {
             this.plugin.app.workspace.revealLeaf(leaf);
           }
         }
-        await this.openPreview(match);
+        await this.openPreview(match, queryAtClick);
       })();
     };
   }
@@ -1740,7 +1768,7 @@ export class SearchSnapshotsModal extends Modal {
     }
   }
 
-  private async openPreview(match: SearchMatch) {
+  private async openPreview(match: SearchMatch, query: string) {
     const sourceFile = this.plugin.app.vault.getAbstractFileByPath(match.path);
     const ext = sourceFile instanceof TFile ? sourceFile.extension : (match.path.split(".").pop()?.toLowerCase() || "md");
 
@@ -1775,54 +1803,57 @@ export class SearchSnapshotsModal extends Modal {
 
       const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
-      const previewPath = sourceFile instanceof TFile ? sourceFile.path : match.path;
-      const resolvedContent = resolveImagesInMarkdown(this.plugin, restored.content, previewPath);
-      resolvedContent.then(async (resolved) => {
-        if (ext === "md") {
-          try {
-            await MarkdownRenderer.render(this.plugin.app, resolved, content, previewPath, this.plugin);
-          } catch {
-            content.createEl("pre", { cls: "sh-raw-pre", text: resolved });
-          }
-        } else {
-          content.createEl("pre", { cls: "sh-raw-pre", text: resolved });
-        }
-        if (this.query.trim()) {
-          highlightInDom(content, this.query.trim());
+      const q = query.trim();
+      const pre = content.createEl("pre", { cls: "sh-raw-pre" });
+      pre.textContent = restored.content;
+      if (q) {
+        highlightInDom(content, q);
 
-          const highlights = content.querySelectorAll<HTMLElement>(".sh-search-highlight");
-          if (highlights.length > 0) {
-            matchNav.style.display = "";
-            matchNav.empty();
+        const highlights = content.querySelectorAll<HTMLElement>(".sh-search-highlight");
+        if (highlights.length > 0) {
+          matchNav.style.display = "";
+          matchNav.empty();
 
-            const counter = matchNav.createEl("span", { cls: "sh-search-match-counter" });
-            const prevBtn = matchNav.createEl("button", { text: "\u25C0", cls: "sh-search-match-btn" });
-            const nextBtn = matchNav.createEl("button", { text: "\u25B6", cls: "sh-search-match-btn" });
+          const counter = matchNav.createEl("span", { cls: "sh-search-match-counter" });
+          const prevBtn = matchNav.createEl("button", { text: "\u25C0", cls: "sh-search-match-btn" });
+          const nextBtn = matchNav.createEl("button", { text: "\u25B6", cls: "sh-search-match-btn" });
 
-            let currentMatch = 0;
+          let currentMatch = 0;
 
             const updateNav = () => {
               counter.textContent = `${currentMatch + 1} / ${highlights.length}`;
-              prevBtn.disabled = currentMatch === 0;
-              nextBtn.disabled = currentMatch === highlights.length - 1;
             };
 
-            const scrollTo = (idx: number) => {
-              highlights[currentMatch]?.classList.remove("sh-search-highlight-current");
-              currentMatch = idx;
-              highlights[currentMatch].classList.add("sh-search-highlight-current");
-              highlights[currentMatch].scrollIntoView({ behavior: "smooth", block: "center" });
-              updateNav();
-            };
-
-            prevBtn.onclick = () => { if (currentMatch > 0) scrollTo(currentMatch - 1); };
-            nextBtn.onclick = () => { if (currentMatch < highlights.length - 1) scrollTo(currentMatch + 1); };
-
-            highlights[0].classList.add("sh-search-highlight-current");
+          const scrollTo = (idx: number) => {
+            highlights[currentMatch]?.classList.remove("sh-search-highlight-current");
+            currentMatch = idx;
+            highlights[currentMatch].classList.add("sh-search-highlight-current");
+            highlights[currentMatch].scrollIntoView({ behavior: "smooth", block: "center" });
             updateNav();
-          }
+          };
+
+          prevBtn.onclick = () => { scrollTo(currentMatch > 0 ? currentMatch - 1 : highlights.length - 1); };
+          nextBtn.onclick = () => { scrollTo(currentMatch < highlights.length - 1 ? currentMatch + 1 : 0); };
+
+          highlights[0].classList.add("sh-search-highlight-current");
+          updateNav();
+
+          const doc = activeDocument;
+          const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              e.preventDefault();
+              scrollTo(currentMatch > 0 ? currentMatch - 1 : highlights.length - 1);
+            } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+              e.preventDefault();
+              scrollTo(currentMatch < highlights.length - 1 ? currentMatch + 1 : 0);
+            }
+          };
+          doc.addEventListener("keydown", onKeyDown);
+          previewAbort.signal.addEventListener("abort", () => {
+            doc.removeEventListener("keydown", onKeyDown);
+          });
         }
-      }).catch(() => {});
+      }
 
       const btnRow = el.createDiv({ cls: "sh-preview-btn-row" });
 

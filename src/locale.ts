@@ -69,6 +69,8 @@ type TranslationKeys = {
 
   // Preview modal
   restoreThisVersion: string;
+  viewRaw: string;
+  viewRendered: string;
   close: string;
 
   // Pre-restore backup
@@ -222,6 +224,8 @@ const en: TranslationKeys = {
   cancel: "Cancel",
 
   restoreThisVersion: "Restore This Version",
+  viewRaw: "View Raw",
+  viewRendered: "View Rendered",
   close: "Close",
 
   lastUnsavedVersion: "Last Unsaved Version",
@@ -366,6 +370,8 @@ const ru: TranslationKeys = {
   cancel: "Отмена",
 
   restoreThisVersion: "Восстановить эту версию",
+  viewRaw: "Исходник",
+  viewRendered: "Просмотр",
   close: "Закрыть",
 
   lastUnsavedVersion: "Последняя несохранённая версия",
@@ -510,6 +516,8 @@ const es: TranslationKeys = {
   cancel: "Cancelar",
 
   restoreThisVersion: "Restaurar esta versión",
+  viewRaw: "Ver fuente",
+  viewRendered: "Ver vista previa",
   close: "Cerrar",
 
   lastUnsavedVersion: "Última versión no guardada",

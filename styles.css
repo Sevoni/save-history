@@ -428,6 +428,10 @@
   width: 780px;
   max-width: 90vw;
 }
+.sh-preview-content {
+  user-select: text;
+  -webkit-user-select: text;
+}
 .sh-preview-content img {
   max-width: 100%;
   height: auto;
@@ -886,5 +890,8 @@
   cursor: default;
 }
 .sh-search-highlight-current {
-  border-bottom: 2px solid var(--color-accent);
+  background-color: var(--color-accent);
+  color: var(--text-on-accent);
+  border-radius: 2px;
+  outline: 1px solid var(--color-accent);
 }
