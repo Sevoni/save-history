@@ -1167,10 +1167,53 @@ export class SaveHistoryView extends ItemView {
     const restored = await readSnapshotContent(this.plugin, snap.filePath);
     if (!restored) return;
 
+    const existingPath = this.plugin.tempVersionFiles.get(snap.filePath);
+    if (existingPath) {
+      // Already open — find leaf and reveal
+      let found = false;
+      this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+        const view = leaf.view as { file?: { path: string } };
+        if (view?.file?.path === existingPath) {
+          this.plugin.app.workspace.revealLeaf(leaf);
+          found = true;
+        }
+      });
+      if (!found) {
+        this.plugin.tempVersionFiles.delete(snap.filePath);
+        // fall through to create a new one
+      } else {
+        return;
+      }
+    }
+
+    const parentPath = activeFile.parent?.path || "";
+    const baseName = activeFile.name.replace(/\.[^.]+$/, "");
+    const safeTs = snap.timestamp.replace(/:/g, "-");
+    const safeName = (snap.name || "unnamed").replace(/[\\/:*?"<>|]/g, "_");
+    const fileName = `${baseName}(${safeName} ${safeTs}).${activeFile.extension}`;
+    const tmpPath = parentPath ? `${parentPath}/${fileName}` : fileName;
+
+    let file: TFile | null = null;
+    const existing = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
+    if (existing instanceof TFile) {
+      file = existing;
+    } else {
+      try {
+        file = await this.plugin.app.vault.create(tmpPath, restored.content);
+      } catch (e) {
+        console.log("openTempVersion vault.create error:", e);
+      }
+    }
+    if (!file) {
+      console.log("openTempVersion file is null, tmpPath:", tmpPath);
+      this.plugin.toast(translate("failedLoadSnapshot"));
+      return;
+    }
+
+    this.plugin.tempVersionFiles.set(snap.filePath, file.path);
+
     const leaf = this.plugin.app.workspace.getLeaf("tab");
-    await leaf.setViewState({ type: VIEW_TYPE_PREVIEW, active: true });
-    const view = leaf.view as PreviewTabView;
-    view.setContent(restored.content, activeFile.name);
+    await leaf.openFile(file);
     this.plugin.app.workspace.revealLeaf(leaf);
   }
 
@@ -1868,10 +1911,49 @@ export class SearchSnapshotsModal extends Modal {
 
     if (this.plugin.settings.previewMode === "tab") {
       if (!(sourceFile instanceof TFile)) return;
+
+      const existingPath = this.plugin.tempVersionFiles.get(match.filePath);
+      if (existingPath) {
+        let found = false;
+        this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+          const view = leaf.view as { file?: { path: string } };
+          if (view?.file?.path === existingPath) {
+            this.plugin.app.workspace.revealLeaf(leaf);
+            found = true;
+          }
+        });
+        if (found) return;
+        this.plugin.tempVersionFiles.delete(match.filePath);
+      }
+
+      const parentPath = sourceFile.parent?.path || "";
+      const baseName = sourceFile.name.replace(/\.[^.]+$/, "");
+      const safeTs = match.timestamp.replace(/:/g, "-");
+      const safeName = (match.name || "unnamed").replace(/[\\/:*?"<>|]/g, "_");
+      const fileName = `${baseName}(${safeName} ${safeTs}).${sourceFile.extension}`;
+      const tmpPath = parentPath ? `${parentPath}/${fileName}` : fileName;
+
+      let file2: TFile | null = null;
+      const existing = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
+      if (existing instanceof TFile) {
+        file2 = existing;
+      } else {
+        try {
+          file2 = await this.plugin.app.vault.create(tmpPath, restored.content);
+        } catch (e) {
+          console.log("openPreview vault.create error:", e);
+        }
+      }
+      if (!file2) {
+        console.log("openPreview file is null, tmpPath:", tmpPath);
+        this.plugin.toast(translate("failedLoadSnapshot"));
+        return;
+      }
+
+      this.plugin.tempVersionFiles.set(match.filePath, file2.path);
+
       const leaf = this.plugin.app.workspace.getLeaf("tab");
-      await leaf.setViewState({ type: VIEW_TYPE_PREVIEW, active: true });
-      const view = leaf.view as PreviewTabView;
-      view.setContent(restored.content, sourceFile.name);
+      await leaf.openFile(file2);
       this.plugin.app.workspace.revealLeaf(leaf);
       return;
     }

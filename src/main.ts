@@ -48,6 +48,7 @@ export class SaveHistoryPlugin extends Plugin {
   settings: SaveHistorySettings = DEFAULT_SETTINGS;
   autosaveManager: AutosaveManager | null = null;
   versioning!: Versioning;
+  tempVersionFiles: Map<string, string> = new Map(); // snapshot filePath → temp file path
   private lastActiveFile: TFile | null = null;
   private tabCloseEventRef: EventRef | null = null;
 
@@ -71,6 +72,12 @@ export class SaveHistoryPlugin extends Plugin {
     this.autosaveManager.start();
 
     this.registerTabCloseListener();
+
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        void this.cleanupTempVersionFiles();
+      })
+    );
 
     this.addRibbonIcon("history", translate("viewTitle"), () => {
       void (async () => {
@@ -278,6 +285,7 @@ export class SaveHistoryPlugin extends Plugin {
   onunload() {
     this.unregisterTabCloseListener();
     this.autosaveManager?.stop();
+    void this.cleanupAllTempFiles();
   }
 
   registerTabCloseListener() {
@@ -370,6 +378,7 @@ export class SaveHistoryPlugin extends Plugin {
     if (!file) return null;
     const root = this.settings.snapshotFolder || ".versions(SH)";
     if (file.path.startsWith(root + "/")) return null;
+    if ([...this.tempVersionFiles.values()].includes(file.path)) return null;
     if (!this.isExtensionAllowed(file.extension)) return null;
     return file;
   }
@@ -398,5 +407,51 @@ export class SaveHistoryPlugin extends Plugin {
 
   toast(message: string) {
     new Notice(message);
+  }
+
+  async cleanupTempVersionFiles(): Promise<void> {
+    const openPaths = new Set<string>();
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      const view = leaf.view as { file?: { path: string } };
+      if (view?.file?.path) openPaths.add(view.file.path);
+    });
+    const toDelete: string[] = [];
+    for (const [key, filePath] of this.tempVersionFiles) {
+      if (!openPaths.has(filePath)) {
+        toDelete.push(key);
+      }
+    }
+    for (const key of toDelete) {
+      const filePath = this.tempVersionFiles.get(key);
+      this.tempVersionFiles.delete(key);
+      if (filePath) {
+        try {
+          if (await this.app.vault.adapter.exists(filePath)) {
+            await this.app.vault.adapter.remove(filePath);
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }
+
+  async cleanupAllTempFiles(): Promise<void> {
+    // Close all leaves with temp files first
+    for (const [, filePath] of this.tempVersionFiles) {
+      this.app.workspace.iterateAllLeaves((leaf) => {
+        const view = leaf.view as { file?: { path: string } };
+        if (view?.file?.path === filePath) {
+          leaf.detach();
+        }
+      });
+    }
+    // Then delete the files
+    for (const [, filePath] of this.tempVersionFiles) {
+      try {
+        if (await this.app.vault.adapter.exists(filePath)) {
+          await this.app.vault.adapter.remove(filePath);
+        }
+      } catch { /* ignore */ }
+    }
+    this.tempVersionFiles.clear();
   }
 }

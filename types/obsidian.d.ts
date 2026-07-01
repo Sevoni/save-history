@@ -31,6 +31,8 @@ declare module "obsidian" {
   export class TAbstractFile {
     path: string;
     name: string;
+    parent: TFolder | null;
+    vault: Vault;
   }
 
   export class TFile extends TAbstractFile {
@@ -135,6 +137,7 @@ declare module "obsidian" {
     view: ItemView;
     setViewState(state: Record<string, unknown>): Promise<void>;
     openFile(file: TFile): Promise<void>;
+    detach(): void;
   }
 
   export class Plugin extends Component {

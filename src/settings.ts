@@ -14,6 +14,7 @@ type PluginWithSettings = Plugin & {
 	registerTabCloseListener: () => void;
 	unregisterTabCloseListener: () => void;
 	refreshCommands: () => void;
+	cleanupAllTempFiles: () => Promise<void>;
 };
 
 export class SaveHistorySettingTab extends PluginSettingTab {
@@ -252,6 +253,9 @@ export class SaveHistorySettingTab extends PluginSettingTab {
           void (async () => {
             this.plugin.settings.previewMode = val as "modal" | "tab";
             await this.plugin.saveSettings();
+            if (val === "modal") {
+              await this.plugin.cleanupAllTempFiles();
+            }
           })();
         });
       });
