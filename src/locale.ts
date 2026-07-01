@@ -600,7 +600,7 @@ const es: TranslationKeys = {
   searchOtherFiles: "Otros archivos",
 };
 
-const translations: Record<Language, TranslationKeys> = { en, ru, es };
+const translations: Record<"en" | "ru" | "es", TranslationKeys> = { en, ru, es };
 
 let currentLanguage: Language = "system";
 

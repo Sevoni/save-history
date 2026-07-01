@@ -212,7 +212,7 @@ export class SaveHistoryView extends ItemView {
 
     const activeFile = this.plugin.getActiveFile();
 
-    const doc = activeDocument;
+    const doc = activeDocument!;
 
     const gearBtn = headerRow.createEl("span", { text: "\u2699", cls: "sh-gear-btn" });
 
@@ -256,7 +256,7 @@ export class SaveHistoryView extends ItemView {
         const groupGlobalItem = settingsDropdown.createDiv({ cls: "sh-menu-item" });
         const groupGlobalCheck = groupGlobalItem.createSpan({ cls: "sh-menu-check" });
         groupGlobalCheck.textContent = !isCustomGroup ? "\u2713" : "";
-        groupGlobalItem.createSpan({ text: `${translate("useGlobal")} (${translate("group" + globalGroupBy.charAt(0).toUpperCase() + globalGroupBy.slice(1))})` });
+        groupGlobalItem.createSpan({ text: `${translate("useGlobal")} (${translate(("group" + globalGroupBy.charAt(0).toUpperCase() + globalGroupBy.slice(1)) as "groupNone" | "groupDay" | "groupWeek" | "groupMonth" | "groupYear")})` });
         groupGlobalItem.addEventListener("click", (e) => {
           e.stopPropagation();
           void this.plugin.clearFileSetting(activeFile.path, "groupBy");
@@ -763,7 +763,7 @@ export class SaveHistoryView extends ItemView {
         const dotsBtn = nameRow.createEl("span", { text: "\u22EE", cls: "sh-snapshot-dots" });
         dotsBtn.title = translate("moreActions");
 
-        const doc = activeDocument;
+        const doc = activeDocument!;
         const dropdown = doc.createElement("div");
         dropdown.dataset.saveHistoryDropdown = "";
         dropdown.classList.add("sh-dropdown");
@@ -818,7 +818,6 @@ export class SaveHistoryView extends ItemView {
           }
           const currentContent = await this.plugin.app.vault.read(curFile);
           const currentSnap: SnapshotRecord & { filePath: string } = {
-            path: curFile.path,
             content: currentContent,
             timestamp: new Date().toISOString(),
             name: translate("currentFile"),
@@ -1184,7 +1183,7 @@ export class SaveHistoryView extends ItemView {
   }
 
   private cleanupDropdowns() {
-    const doc = activeDocument;
+    const doc = activeDocument!;
     doc.querySelectorAll("[data-save-history-dropdown]").forEach(el => el.remove());
   }
 }
@@ -1491,7 +1490,7 @@ async function appendDiffRow(
 }
 
 function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSignal) {
-  const doc = activeDocument;
+  const doc = activeDocument!;
   let startX = 0, startY = 0, origLeft = 0, origTop = 0;
   let dragging = false;
 
@@ -1545,7 +1544,7 @@ function makeDraggable(el: HTMLElement, handle: HTMLElement, signal?: AbortSigna
 }
 
 function makeResizable(el: HTMLElement, signal?: AbortSignal) {
-  const doc = activeDocument;
+  const doc = activeDocument!;
   const resizer = el.createDiv({ cls: "sh-resizer" });
   resizer.createDiv({ cls: "sh-resizer-line1" });
   resizer.createDiv({ cls: "sh-resizer-line2" });
@@ -1838,7 +1837,7 @@ export class SearchSnapshotsModal extends Modal {
           highlights[0].classList.add("sh-search-highlight-current");
           updateNav();
 
-          const doc = activeDocument;
+          const doc = activeDocument!;
           const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
               e.preventDefault();

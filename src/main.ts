@@ -207,7 +207,7 @@ export class SaveHistoryPlugin extends Plugin {
 
         menu.addItem((item: MenuItem) => {
           item.setTitle(translate("importVersions")).setIcon("upload").onClick(() => {
-            const doc = activeDocument;
+            const doc = activeDocument!;
             const input = doc.createElement("input");
             input.type = "file";
             input.multiple = true;
@@ -304,7 +304,7 @@ export class SaveHistoryPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+    await this.saveData(this.settings as unknown as Record<string, unknown>);
   }
 
   getFileSettings(filePath: string): PerFileSettings {

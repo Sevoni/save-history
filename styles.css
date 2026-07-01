@@ -464,8 +464,12 @@
 .sh-preview-btn-row {
   margin-top: 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
+}
+.sh-preview-btn-row button {
+  flex: 1;
 }
 .sh-raw-pre {
   margin: 0;
