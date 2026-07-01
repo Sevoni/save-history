@@ -151,6 +151,10 @@ type TranslationKeys = {
   resetToGlobal: string;
   langSystem: string;
 
+  // Favorites
+  addToFavorites: string;
+  removeFromFavorites: string;
+
   // Search
   searchSnapshotsCmd: string;
   searchSnapshotsCmdDesc: string;
@@ -306,6 +310,9 @@ const en: TranslationKeys = {
   searchLoading: "Searching\u2026",
   searchCurrentFile: "Current file",
   searchOtherFiles: "Other files",
+
+  addToFavorites: "Add to favorites",
+  removeFromFavorites: "Remove from favorites",
 };
 
 const ru: TranslationKeys = {
@@ -452,6 +459,9 @@ const ru: TranslationKeys = {
   searchLoading: "Поиск\u2026",
   searchCurrentFile: "Текущий файл",
   searchOtherFiles: "Другие файлы",
+
+  addToFavorites: "Добавить в избранное",
+  removeFromFavorites: "Убрать из избранного",
 };
 
 const es: TranslationKeys = {
@@ -598,6 +608,9 @@ const es: TranslationKeys = {
   searchLoading: "Buscando\u2026",
   searchCurrentFile: "Archivo actual",
   searchOtherFiles: "Otros archivos",
+
+  addToFavorites: "Añadir a favoritos",
+  removeFromFavorites: "Quitar de favoritos",
 };
 
 const translations: Record<"en" | "ru" | "es", TranslationKeys> = { en, ru, es };

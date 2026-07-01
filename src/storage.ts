@@ -5,6 +5,7 @@ export type SnapshotRecord = {
   timestamp: string; // ISO
   content: string;
   name: string;
+  favorite?: boolean;
 };
 
 export function normalizeRecord(raw: Record<string, unknown>): SnapshotRecord {
@@ -12,6 +13,7 @@ export function normalizeRecord(raw: Record<string, unknown>): SnapshotRecord {
     timestamp: String(raw.timestamp ?? ""),
     content: String(raw.content ?? ""),
     name: String(raw.name ?? raw.reason ?? ""),
+    favorite: Boolean(raw.favorite),
   };
 }
 
@@ -218,6 +220,25 @@ export async function updateSnapshotLabel(
       record.name = newLabel;
       await adapter.write(filePath, JSON.stringify(record, null, 2));
       return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export async function toggleSnapshotFavorite(
+  plugin: SaveHistoryPlugin,
+  filePath: string
+): Promise<boolean> {
+  const adapter = plugin.app.vault.adapter;
+  if (await adapter.exists(filePath)) {
+    try {
+      const json = await adapter.read(filePath);
+      const record = normalizeRecord(JSON.parse(json));
+      record.favorite = !record.favorite;
+      await adapter.write(filePath, JSON.stringify(record, null, 2));
+      return record.favorite;
     } catch {
       return false;
     }
@@ -648,6 +669,9 @@ export async function searchSnapshots(
   results.sort((a, b) => {
     if (a.isCurrentFile !== b.isCurrentFile) {
       return a.isCurrentFile ? -1 : 1;
+    }
+    if (!!a.favorite !== !!b.favorite) {
+      return a.favorite ? -1 : 1;
     }
     return a.timestamp > b.timestamp ? -1 : 1;
   });

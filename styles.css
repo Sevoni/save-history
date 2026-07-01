@@ -201,6 +201,13 @@
   justify-content: space-between;
   min-width: 0;
 }
+.sh-snapshot-name-left {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
 .sh-snapshot-label {
   font-weight: 500;
   overflow: hidden;
@@ -221,6 +228,19 @@
   border-radius: 4px;
   user-select: none;
   flex-shrink: 0;
+}
+.sh-snapshot-star {
+  display: inline;
+  margin-left: 4px;
+  color: var(--text-warning);
+  font-size: 0.95em;
+  vertical-align: baseline;
+}
+.sh-search-result-star {
+  display: inline;
+  margin-left: 4px;
+  color: var(--text-warning);
+  font-size: 0.85em;
 }
 .sh-bulk-checkbox {
   margin-left: auto;

@@ -1,6 +1,6 @@
 import { Modal, TFile, ItemView, WorkspaceLeaf, MarkdownRenderer, Component, setIcon } from "obsidian";
 import { SaveHistoryPlugin, type GroupByMode } from "./main";
-import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, savePreRestoreBackup, ensureExportDir, getExportFolderPath, searchSnapshots, createSearchRegex } from "./storage";
+import { listSnapshotsForFile, readSnapshotContent, deleteSnapshotFile, updateSnapshotLabel, toggleSnapshotFavorite, savePreRestoreBackup, ensureExportDir, getExportFolderPath, searchSnapshots, createSearchRegex } from "./storage";
 import type { SnapshotRecord, SearchMatch } from "./storage";
 import { computeDiff, type DiffLine } from "./diff";
 import { translate, getLocale } from "./locale";
@@ -202,6 +202,7 @@ export class SaveHistoryView extends ItemView {
 
   async onOpen() {
     this.cleanupDropdowns();
+    const savedScroll = this.containerEl.querySelector('.sh-sidebar')?.scrollTop ?? 0;
     this.containerEl.empty();
 
     const wrapper = this.containerEl.createDiv({ cls: "sh-sidebar" });
@@ -659,6 +660,10 @@ export class SaveHistoryView extends ItemView {
         };
       };
     }
+
+    if (savedScroll > 0) {
+      wrapper.scrollTop = savedScroll;
+    }
   }
 
   private groupSnapshots(
@@ -737,8 +742,13 @@ export class SaveHistoryView extends ItemView {
         else if (idx === 1) selectionLabel = translate("diffOlder");
       }
 
-      const label = nameRow.createEl("span", { cls: "sh-snapshot-label" });
+      const nameLeft = nameRow.createDiv({ cls: "sh-snapshot-name-left" });
+      const label = nameLeft.createEl("span", { cls: "sh-snapshot-label" });
       label.textContent = snap.name;
+
+      if (snap.favorite) {
+        nameLeft.createSpan({ text: "\u2605", cls: "sh-snapshot-star" });
+      }
 
       if (selectionLabel) {
         nameRow.createEl("span", { text: ` [${selectionLabel}]`, cls: "sh-snapshot-sel-label" });
@@ -805,6 +815,13 @@ export class SaveHistoryView extends ItemView {
           dropdown.style.left = left + "px";
           doc.addEventListener("mousedown", onOutsideMouseDown, true);
         };
+
+        addMenuItem(translate(snap.favorite ? "removeFromFavorites" : "addToFavorites"), () => {
+          void (async () => {
+            await toggleSnapshotFavorite(this.plugin, snap.filePath);
+            this.refresh();
+          })();
+        });
 
         addMenuItem(translate("renameVersion"), () => renderEditState());
 
@@ -1707,6 +1724,9 @@ export class SearchSnapshotsModal extends Modal {
 
     const pathEl = item.createDiv({ cls: "sh-search-result-path" });
     this.highlightText(pathEl, match.path);
+    if (match.favorite) {
+      pathEl.createSpan({ text: "\u2605", cls: "sh-search-result-star" });
+    }
 
     const metaEl = item.createDiv({ cls: "sh-search-result-meta" });
     const date = new Date(match.timestamp);
