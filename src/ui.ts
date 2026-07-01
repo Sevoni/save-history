@@ -878,7 +878,7 @@ export class SaveHistoryView extends ItemView {
         addMenuItem(translate("renameVersion"), () => renderEditState());
 
         addMenuItem(translate("diffWithCurrent"), () => { void (async () => {
-          const curFile = this.plugin.getActiveFile();
+      const curFile = this.plugin.getActiveFile(false);
           if (!curFile) return;
           const snapContent = await readSnapshotContent(this.plugin, snap.filePath);
           if (!snapContent) {
@@ -1169,21 +1169,27 @@ export class SaveHistoryView extends ItemView {
 
     const existingPath = this.plugin.tempVersionFiles.get(snap.filePath);
     if (existingPath) {
-      // Already open — find leaf and reveal
-      let found = false;
+      let targetLeaf: WorkspaceLeaf | null = null;
       this.plugin.app.workspace.iterateAllLeaves((leaf) => {
-        const view = leaf.view as { file?: { path: string } };
-        if (view?.file?.path === existingPath) {
-          this.plugin.app.workspace.revealLeaf(leaf);
-          found = true;
+        if ((leaf.view as { file?: { path: string } })?.file?.path === existingPath) {
+          targetLeaf = leaf;
         }
       });
-      if (!found) {
-        this.plugin.tempVersionFiles.delete(snap.filePath);
-        // fall through to create a new one
-      } else {
+      if (targetLeaf) {
+        this.plugin.app.workspace.revealLeaf(targetLeaf);
         return;
       }
+      // Mobile fallback — open existing file again (switches to existing tab)
+      if (this.plugin.app.isMobile) {
+        const f = this.plugin.app.vault.getAbstractFileByPath(existingPath);
+        if (f instanceof TFile) {
+          const leaf = this.plugin.app.workspace.getLeaf("tab");
+          await leaf.openFile(f);
+          this.plugin.app.workspace.revealLeaf(leaf);
+          return;
+        }
+      }
+      this.plugin.tempVersionFiles.delete(snap.filePath);
     }
 
     const parentPath = activeFile.parent?.path || "";
@@ -1914,15 +1920,26 @@ export class SearchSnapshotsModal extends Modal {
 
       const existingPath = this.plugin.tempVersionFiles.get(match.filePath);
       if (existingPath) {
-        let found = false;
+        let targetLeaf: WorkspaceLeaf | null = null;
         this.plugin.app.workspace.iterateAllLeaves((leaf) => {
-          const view = leaf.view as { file?: { path: string } };
-          if (view?.file?.path === existingPath) {
-            this.plugin.app.workspace.revealLeaf(leaf);
-            found = true;
+          if ((leaf.view as { file?: { path: string } })?.file?.path === existingPath) {
+            targetLeaf = leaf;
           }
         });
-        if (found) return;
+        if (targetLeaf) {
+          this.plugin.app.workspace.revealLeaf(targetLeaf);
+          return;
+        }
+        // Mobile fallback — open existing file again
+        if (this.plugin.app.isMobile) {
+          const f = this.plugin.app.vault.getAbstractFileByPath(existingPath);
+          if (f instanceof TFile) {
+            const leaf = this.plugin.app.workspace.getLeaf("tab");
+            await leaf.openFile(f);
+            this.plugin.app.workspace.revealLeaf(leaf);
+            return;
+          }
+        }
         this.plugin.tempVersionFiles.delete(match.filePath);
       }
 

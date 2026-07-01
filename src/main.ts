@@ -294,7 +294,9 @@ export class SaveHistoryPlugin extends Plugin {
     this.tabCloseEventRef = this.app.workspace.on("active-leaf-change", () => {
       const file = this.getActiveFile();
       if (this.lastActiveFile && this.lastActiveFile !== file) {
-        this.autosaveManager?.saveOnTabClose(this.lastActiveFile).catch(() => {});
+        if (![...this.tempVersionFiles.values()].includes(this.lastActiveFile.path)) {
+          this.autosaveManager?.saveOnTabClose(this.lastActiveFile).catch(() => {});
+        }
       }
       this.lastActiveFile = file;
     });
@@ -373,12 +375,12 @@ export class SaveHistoryPlugin extends Plugin {
     return this.settings.groupBy;
   }
 
-  getActiveFile(): TFile | null {
+  getActiveFile(skipTempFiles = true): TFile | null {
     const file = this.app.workspace.getActiveFile();
     if (!file) return null;
     const root = this.settings.snapshotFolder || ".versions(SH)";
     if (file.path.startsWith(root + "/")) return null;
-    if ([...this.tempVersionFiles.values()].includes(file.path)) return null;
+    if (skipTempFiles && [...this.tempVersionFiles.values()].includes(file.path)) return null;
     if (!this.isExtensionAllowed(file.extension)) return null;
     return file;
   }
