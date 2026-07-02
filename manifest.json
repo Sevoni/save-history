@@ -1,7 +1,7 @@
 {
   "id": "save-history",
   "name": "Save History",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "minAppVersion": "0.15.0",
   "description": "Save, restore, compare, export, and import file versions; use autosave and custom settings for each file.",
   "author": "Gugl",
