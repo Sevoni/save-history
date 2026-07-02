@@ -520,12 +520,19 @@
   gap: 2px;
   min-width: 0;
 }
+.sh-restore-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .sh-restore-name {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  flex: 1;
 }
 .sh-restore-time {
   font-size: 0.8em;
@@ -912,6 +919,9 @@
 .sh-search-match-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+.sh-search-match-nav-hidden {
+  display: none;
 }
 .sh-search-highlight-current {
   background-color: var(--color-accent);

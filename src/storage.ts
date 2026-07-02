@@ -97,7 +97,7 @@ export async function listSnapshotsForFile(
     try {
       const json = await adapter.read(fullVaultPath);
       if (json) {
-        const record = normalizeRecord(JSON.parse(json));
+        const record = normalizeRecord(JSON.parse(json) as Record<string, unknown>);
         snapshots.push({
           ...record,
           filePath: fullVaultPath
@@ -125,7 +125,7 @@ export async function readSnapshotContent(
 
   try {
     const json = await adapter.read(filePath);
-    return normalizeRecord(JSON.parse(json));
+    return normalizeRecord(JSON.parse(json) as Record<string, unknown>);
   } catch {
     return null;
   }
@@ -216,7 +216,7 @@ export async function updateSnapshotLabel(
   if (await adapter.exists(filePath)) {
     try {
       const json = await adapter.read(filePath);
-      const record = normalizeRecord(JSON.parse(json));
+      const record = normalizeRecord(JSON.parse(json) as Record<string, unknown>);
       record.name = newLabel;
       await adapter.write(filePath, JSON.stringify(record, null, 2));
       return true;
@@ -235,7 +235,7 @@ export async function toggleSnapshotFavorite(
   if (await adapter.exists(filePath)) {
     try {
       const json = await adapter.read(filePath);
-      const record = normalizeRecord(JSON.parse(json));
+      const record = normalizeRecord(JSON.parse(json) as Record<string, unknown>);
       record.favorite = !record.favorite;
       await adapter.write(filePath, JSON.stringify(record, null, 2));
       return record.favorite;
@@ -265,7 +265,7 @@ export async function savePreRestoreBackup(
         if (fullVaultPath.endsWith(".json")) {
           try {
             const json = await adapter.read(fullVaultPath);
-            const record = normalizeRecord(JSON.parse(json));
+            const record = normalizeRecord(JSON.parse(json) as Record<string, unknown>);
             if (record.name === "pre-restore") {
               return;
             }
@@ -623,7 +623,7 @@ export async function searchSnapshots(
   await walkJsonFiles(adapter, root, async (filePath) => {
     try {
       const json = await adapter.read(filePath);
-      const record = normalizeRecord(JSON.parse(json));
+      const record = normalizeRecord(JSON.parse(json) as Record<string, unknown>);
       const derivedPath = derivePathFromSnapshotFile(plugin, filePath);
 
       const ranges = getMatchRanges(record.content, queryTrimmed);

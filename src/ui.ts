@@ -1179,7 +1179,7 @@ export class SaveHistoryView extends ItemView {
         this.plugin.app.workspace.revealLeaf(targetLeaf);
         return;
       }
-      // Mobile fallback — open existing file again (switches to existing tab)
+      // Mobile fallback
       if (this.plugin.app.isMobile) {
         const f = this.plugin.app.vault.getAbstractFileByPath(existingPath);
         if (f instanceof TFile) {
@@ -1197,8 +1197,9 @@ export class SaveHistoryView extends ItemView {
     const safeTs = snap.timestamp.replace(/:/g, "-");
     const safeName = (snap.name || "unnamed").replace(/[\\/:*?"<>|]/g, "_");
     const fileName = `${baseName}(${safeName} ${safeTs}).${activeFile.extension}`;
-    const tmpPath = parentPath ? `${parentPath}/${fileName}` : fileName;
+    const tmpPath = parentPath && parentPath !== "/" ? `${parentPath}/${fileName}` : fileName;
 
+    // Get or create file
     let file: TFile | null = null;
     const existing = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
     if (existing instanceof TFile) {
@@ -1206,17 +1207,36 @@ export class SaveHistoryView extends ItemView {
     } else {
       try {
         file = await this.plugin.app.vault.create(tmpPath, restored.content);
-      } catch (e) {
-        console.log("openTempVersion vault.create error:", e);
+      } catch {
+        const fallback = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
+        if (fallback instanceof TFile) file = fallback;
       }
     }
     if (!file) {
-      console.log("openTempVersion file is null, tmpPath:", tmpPath);
       this.plugin.toast(translate("failedLoadSnapshot"));
       return;
     }
 
     this.plugin.tempVersionFiles.set(snap.filePath, file.path);
+
+    // Check if file is already open in any leaf (e.g. from previous session)
+    let existingLeaf: WorkspaceLeaf | null = null;
+    const filePath = file!.path;
+    this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+      if ((leaf.view as { file?: { path: string } })?.file?.path === filePath) {
+        existingLeaf = leaf;
+        return;
+      }
+      // Fallback: check view state for restored but not yet active tabs
+      const state = leaf.getViewState() as { state?: { file?: string } };
+      if (state?.state?.file === filePath) {
+        existingLeaf = leaf;
+      }
+    });
+    if (existingLeaf) {
+      this.plugin.app.workspace.revealLeaf(existingLeaf);
+      return;
+    }
 
     const leaf = this.plugin.app.workspace.getLeaf("tab");
     await leaf.openFile(file);
@@ -1378,8 +1398,13 @@ class RestoreVersionModal extends Modal {
 
       const meta = row.createDiv({ cls: "sh-restore-meta" });
 
-      const nameLabel = meta.createEl("span", { cls: "sh-restore-name" });
+      const nameRow = meta.createDiv({ cls: "sh-restore-name-row" });
+      const nameLabel = nameRow.createEl("span", { cls: "sh-restore-name" });
       nameLabel.textContent = snap.name || translate("unnamed");
+
+      if (snap.favorite) {
+        nameRow.createSpan({ text: "\u2605", cls: "sh-snapshot-star" });
+      }
 
       const timeLabel = meta.createEl("span", { cls: "sh-restore-time" });
       const d = new Date(snap.timestamp);
@@ -1753,7 +1778,7 @@ export class SearchSnapshotsModal extends Modal {
     const inputWrapper = header.createDiv({ cls: "sh-search-input-wrapper" });
     this.inputEl = inputWrapper.createEl("input", {
       cls: "sh-search-input",
-      attr: { type: "text", placeholder: translate("searchInputPlaceholder") } as Record<string, string>,
+      attr: { type: "text", placeholder: translate("searchInputPlaceholder") },
     });
 
     const clearBtn = inputWrapper.createEl("span", { text: "\u2715", cls: "sh-search-clear-btn" });
@@ -1773,7 +1798,7 @@ export class SearchSnapshotsModal extends Modal {
     this.inputEl.addEventListener("input", () => {
       this.query = this.inputEl.value;
       if (this.debounceTimer !== null) {
-        clearTimeout(this.debounceTimer);
+window.clearTimeout(this.debounceTimer);
       }
       this.debounceTimer = window.setTimeout(() => void this.doSearch(), 300);
     });
@@ -1907,7 +1932,6 @@ export class SearchSnapshotsModal extends Modal {
 
   private async openPreview(match: SearchMatch, query: string) {
     const sourceFile = this.plugin.app.vault.getAbstractFileByPath(match.path);
-    const ext = sourceFile instanceof TFile ? sourceFile.extension : (match.path.split(".").pop()?.toLowerCase() || "md");
 
     const restored = await readSnapshotContent(this.plugin, match.filePath);
     if (!restored) {
@@ -1948,7 +1972,7 @@ export class SearchSnapshotsModal extends Modal {
       const safeTs = match.timestamp.replace(/:/g, "-");
       const safeName = (match.name || "unnamed").replace(/[\\/:*?"<>|]/g, "_");
       const fileName = `${baseName}(${safeName} ${safeTs}).${sourceFile.extension}`;
-      const tmpPath = parentPath ? `${parentPath}/${fileName}` : fileName;
+      const tmpPath = parentPath && parentPath !== "/" ? `${parentPath}/${fileName}` : fileName;
 
       let file2: TFile | null = null;
       const existing = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
@@ -1957,17 +1981,35 @@ export class SearchSnapshotsModal extends Modal {
       } else {
         try {
           file2 = await this.plugin.app.vault.create(tmpPath, restored.content);
-        } catch (e) {
-          console.log("openPreview vault.create error:", e);
+        } catch {
+          const fallback = this.plugin.app.vault.getAbstractFileByPath(tmpPath);
+          if (fallback instanceof TFile) file2 = fallback;
         }
       }
       if (!file2) {
-        console.log("openPreview file is null, tmpPath:", tmpPath);
         this.plugin.toast(translate("failedLoadSnapshot"));
         return;
       }
 
       this.plugin.tempVersionFiles.set(match.filePath, file2.path);
+
+      // Check if file is already open in any leaf (e.g. from previous session)
+      let existingLeaf2: WorkspaceLeaf | null = null;
+      const filePath2 = file2!.path;
+      this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+        if ((leaf.view as { file?: { path: string } })?.file?.path === filePath2) {
+          existingLeaf2 = leaf;
+          return;
+        }
+        const state = leaf.getViewState() as { state?: { file?: string } };
+        if (state?.state?.file === filePath2) {
+          existingLeaf2 = leaf;
+        }
+      });
+      if (existingLeaf2) {
+        this.plugin.app.workspace.revealLeaf(existingLeaf2);
+        return;
+      }
 
       const leaf = this.plugin.app.workspace.getLeaf("tab");
       await leaf.openFile(file2);
@@ -1996,7 +2038,7 @@ export class SearchSnapshotsModal extends Modal {
       timeEl.textContent = `${date.toLocaleDateString(getLocale())} ${date.toLocaleTimeString()}`;
 
       const matchNav = el.createDiv({ cls: "sh-search-match-nav" });
-      matchNav.style.display = "none";
+      matchNav.classList.add("sh-search-match-nav-hidden");
 
       const content = el.createDiv({ cls: "sh-preview-body sh-preview-content" });
 
@@ -2008,7 +2050,7 @@ export class SearchSnapshotsModal extends Modal {
 
         const highlights = content.querySelectorAll<HTMLElement>(".sh-search-highlight");
         if (highlights.length > 0) {
-          matchNav.style.display = "";
+          matchNav.classList.remove("sh-search-match-nav-hidden");
           matchNav.empty();
 
           const counter = matchNav.createEl("span", { cls: "sh-search-match-counter" });
@@ -2079,14 +2121,14 @@ export class SearchSnapshotsModal extends Modal {
 
   onClose() {
     if (this.debounceTimer !== null) {
-      clearTimeout(this.debounceTimer);
+window.clearTimeout(this.debounceTimer);
     }
   }
 }
 
 function highlightInDom(container: HTMLElement, query: string) {
   if (!query) return;
-  const doc = container.ownerDocument ?? document;
+  const doc = container.ownerDocument ?? activeDocument!;
 
   const regex = createSearchRegex(query);
 

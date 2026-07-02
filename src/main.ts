@@ -78,6 +78,11 @@ export class SaveHistoryPlugin extends Plugin {
         void this.cleanupTempVersionFiles();
       })
     );
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => {
+        void this.cleanupTempVersionFiles();
+      })
+    );
 
     this.addRibbonIcon("history", translate("viewTitle"), () => {
       void (async () => {
